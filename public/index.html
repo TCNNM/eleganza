@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#05070d" />
+  <meta name="description" content="Polaris — 全球节点实时探针：延迟、可用率、系统负载与证书状态，一屏尽览。" />
+  <title>Polaris — 全球节点 · 实时探针</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <div class="aurora aurora-a"></div>
+    <div class="aurora aurora-b"></div>
+    <div class="grid-overlay"></div>
+    <div class="grain"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Polaris 首页">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".55"/>
+          <ellipse cx="16" cy="16" rx="6" ry="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".8"/>
+          <path d="M3 16h26" stroke="url(#bm2)" stroke-width="1.2" opacity=".7"/>
+          <circle cx="16" cy="16" r="2.4" fill="#34e6c6"/>
+          <circle cx="25.2" cy="9.4" r="1.7" fill="#8b9dff"/>
+          <defs>
+            <linearGradient id="bm1" x1="3" y1="3" x2="29" y2="29">
+              <stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/>
+            </linearGradient>
+            <linearGradient id="bm2" x1="3" y1="16" x2="29" y2="16">
+              <stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <span class="brand-copy">
+        <strong>POLARIS</strong>
+        <em>PROBE NETWORK</em>
+      </span>
+    </a>
+
+    <nav class="topnav" aria-label="主导航">
+      <a href="#overview" class="is-active">总览</a>
+      <a href="#nodes">节点</a>
+      <a href="#incidents">事件</a>
+      <a href="#developers">API</a>
+    </nav>
+
+    <div class="topbar-side">
+      <div class="live-chip" title="数据实时刷新">
+        <span class="live-dot"></span>
+        <span class="live-word">LIVE</span>
+        <time id="clock">--:--:--</time>
+      </div>
+      <button id="refresh-button" class="icon-button" type="button" aria-label="立即刷新" title="立即刷新">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="logout-button" class="icon-button" type="button" aria-label="退出登录" title="退出登录" hidden>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero" id="overview">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>GLOBAL NETWORK</span>
+          <span class="eyebrow-sep">/</span>
+          <span id="hero-state" class="eyebrow-state">正在连接</span>
+        </div>
+        <h1 id="hero-title">让每一条线路，<br /><span class="gradient-text">都清晰可见。</span></h1>
+        <p class="hero-desc" id="hero-description">
+          从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#nodes">
+            <span>查看全部节点</span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11M11 5.5 15.5 10 11 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="button ghost" href="#developers">接入 API / MCP</a>
+        </div>
+        <dl class="hero-metrics">
+          <div>
+            <dt>30 天可用率</dt>
+            <dd id="hero-availability">—</dd>
+          </div>
+          <div>
+            <dt>平均延迟</dt>
+            <dd id="hero-latency">—</dd>
+          </div>
+          <div>
+            <dt>在线节点</dt>
+            <dd id="hero-nodes">—</dd>
+          </div>
+          <div>
+            <dt>最近更新</dt>
+            <dd id="hero-updated" class="metric-small">—</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="globe-panel">
+        <div class="globe-head">
+          <span class="globe-label"><span class="globe-pulse"></span>LIVE NETWORK</span>
+          <span class="globe-coord" id="globe-coord">31.2°N&nbsp;&nbsp;121.5°E</span>
+          <button class="icon-button tiny" id="globe-toggle" type="button" aria-label="暂停旋转" title="暂停 / 继续旋转">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6.5 5v10M13.5 5v10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="globe-stage">
+          <canvas id="globe" aria-label="全球节点分布图"></canvas>
+          <div class="globe-tooltip" id="globe-tooltip" role="status" hidden></div>
+          <div class="globe-badge">
+            <span class="globe-badge-label">探针中枢</span>
+            <span class="globe-badge-value" id="hub-name">上海</span>
+          </div>
+        </div>
+        <div class="globe-foot">
+          <span class="legend"><i class="dot online"></i><b id="legend-online">0</b> 在线</span>
+          <span class="legend"><i class="dot warning"></i><b id="legend-warning">0</b> 注意</span>
+          <span class="legend"><i class="dot offline"></i><b id="legend-offline">0</b> 离线</span>
+          <span class="globe-hint">拖动旋转 · 点击节点</span>
+        </div>
+      </div>
+    </section>
+
+    <div id="status-banner" class="status-banner" hidden></div>
+
+    <section class="kpis" aria-label="关键指标">
+      <article class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">节点总数</span>
+          <span class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="4" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="13" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+          </span>
+        </div>
+        <div class="kpi-value"><span id="kpi-total">—</span><em>台</em></div>
+        <div class="kpi-foot" id="kpi-total-foot">覆盖 — 个地区</div>
+        <div class="kpi-visual" id="kpi-status-dots"></div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">在线节点</span>
+          <span class="kpi-icon ok">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 17V9m5 8V5m5 12v-6m5 6V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+        <div class="kpi-value"><span id="kpi-online">—</span><em>/ <span id="kpi-total-2">—</span></em></div>
+        <div class="kpi-foot" id="kpi-online-foot">全部正常</div>
+        <div class="kpi-meter"><span id="kpi-online-bar"></span></div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">平均延迟</span>
+          <span class="kpi-icon blue">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 4v4m0 8v4M4 12h4m8 0h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.5"/></svg>
+          </span>
+        </div>
+        <div class="kpi-value"><span id="kpi-latency">—</span><em>ms</em></div>
+        <div class="kpi-foot" id="kpi-latency-foot">全部节点均值</div>
+        <div class="kpi-bars" id="kpi-latency-bars"></div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">30 天可用率</span>
+          <span class="kpi-icon violet">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 15l4-5 4 3 4-7 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".45"/></svg>
+          </span>
+        </div>
+        <div class="kpi-value"><span id="kpi-availability">—</span><em>%</em></div>
+        <div class="kpi-foot" id="kpi-availability-foot">基于 — 次探测</div>
+        <div class="kpi-ring-row">
+          <svg class="kpi-ring" viewBox="0 0 44 44" aria-hidden="true">
+            <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(148,163,184,.14)" stroke-width="3"/>
+            <circle id="kpi-ring-value" cx="22" cy="22" r="18" fill="none" stroke="url(#ringGrad)" stroke-width="3" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="113.1" transform="rotate(-90 22 22)"/>
+            <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="44" y2="44"><stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/></linearGradient></defs>
+          </svg>
+          <span>目标 99.9%</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="nodes-section" id="nodes">
+      <div class="section-head">
+        <div class="section-title">
+          <span class="section-index">01</span>
+          <div>
+            <h2>节点状态</h2>
+            <p>实时探测结果与最近 30 天可用率</p>
+          </div>
+        </div>
+        <div class="node-tools">
+          <div class="filters" id="filters" role="tablist" aria-label="按状态筛选"></div>
+          <label class="search-box">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="5.2" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input id="node-search" type="search" placeholder="搜索节点 / 地区" autocomplete="off" />
+          </label>
+        </div>
+      </div>
+      <div class="node-grid" id="node-grid" aria-live="polite"></div>
+      <div class="empty-state" id="node-empty" hidden>
+        <span class="empty-icon">⌁</span>
+        <strong>没有匹配的节点</strong>
+        <p>换一个关键词，或切换到「全部」。</p>
+      </div>
+      <div class="section-note" id="nodes-note"></div>
+    </section>
+
+    <section class="split" id="incidents">
+      <article class="panel incidents-panel">
+        <header class="panel-head">
+          <div>
+            <span class="section-index">02</span>
+            <h2>最近事件</h2>
+          </div>
+          <span class="panel-meta" id="incident-meta">—</span>
+        </header>
+        <ol class="incident-list" id="incident-list"></ol>
+      </article>
+
+      <article class="panel dev-panel" id="developers">
+        <header class="panel-head">
+          <div>
+            <span class="section-index">03</span>
+            <h2>开放接口</h2>
+          </div>
+          <span class="panel-meta">REST · MCP</span>
+        </header>
+        <p class="panel-desc">把探针数据接进自己的脚本、Bot 或 AI 助手。只读接口，无需额外依赖。</p>
+
+        <div class="code-block">
+          <div class="code-head">
+            <span>REST API</span>
+            <button class="copy-button" type="button" data-copy-target="rest-snippet">复制</button>
+          </div>
+          <pre id="rest-snippet" tabindex="0"></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-head">
+            <span>MCP (Claude / Cursor)</span>
+            <button class="copy-button" type="button" data-copy-target="mcp-snippet">复制</button>
+          </div>
+          <pre id="mcp-snippet" tabindex="0"></pre>
+        </div>
+
+        <a class="panel-link" href="/mcp" target="_blank" rel="noreferrer">
+          查看 MCP 能力
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4h9v9M16 4 6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-brand">
+      <span class="brand-mark small" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".55"/>
+          <ellipse cx="16" cy="16" rx="6" ry="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".8"/>
+          <path d="M3 16h26" stroke="url(#bm2)" stroke-width="1.2" opacity=".7"/>
+          <circle cx="16" cy="16" r="2.4" fill="#34e6c6"/>
+          <circle cx="25.2" cy="9.4" r="1.7" fill="#8b9dff"/>
+          <defs>
+            <linearGradient id="bm1" x1="3" y1="3" x2="29" y2="29"><stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/></linearGradient>
+            <linearGradient id="bm2" x1="3" y1="16" x2="29" y2="16"><stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/></linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <span id="footer-text">Polaris · 自建探针面板</span>
+    </div>
+    <div class="footer-side">
+      <span id="footer-refresh">每 5 秒同步</span>
+      <span class="footer-sep">·</span>
+      <a href="#developers">API / MCP</a>
+      <span class="footer-sep">·</span>
+      <span>Zero dependencies</span>
+    </div>
+  </footer>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="节点详情" aria-hidden="true" hidden>
+    <div class="drawer-scroll" id="drawer-content"></div>
+  </aside>
+
+  <div class="login-layer" id="login-layer" hidden>
+    <form class="login-card" id="login-form">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".55"/>
+          <ellipse cx="16" cy="16" rx="6" ry="13" stroke="url(#bm1)" stroke-width="1.2" opacity=".8"/>
+          <path d="M3 16h26" stroke="url(#bm2)" stroke-width="1.2" opacity=".7"/>
+          <circle cx="16" cy="16" r="2.4" fill="#34e6c6"/>
+          <defs>
+            <linearGradient id="bm1" x1="3" y1="3" x2="29" y2="29"><stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/></linearGradient>
+            <linearGradient id="bm2" x1="3" y1="16" x2="29" y2="16"><stop stop-color="#34e6c6"/><stop offset="1" stop-color="#8b8bff"/></linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <h2>进入 Polaris</h2>
+      <p>这个面板是私有的，请输入访问密码。</p>
+      <label>
+        <span>密码</span>
+        <input type="text" name="username" autocomplete="username" value="polaris" hidden />
+        <input id="login-password" type="password" name="password" autocomplete="current-password" required />
+      </label>
+      <button class="button primary" type="submit" id="login-submit">解锁面板</button>
+      <small id="login-error" class="form-error" hidden></small>
+    </form>
+  </div>
+
+  <script src="/globe-land.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

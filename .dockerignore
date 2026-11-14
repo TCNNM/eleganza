@@ -1,0 +1,11 @@
+data
+config.json
+.git
+.gitignore
+.shots
+.tmp
+node_modules
+test
+tools
+docs
+*.log

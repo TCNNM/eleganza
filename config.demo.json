@@ -1,0 +1,234 @@
+{
+  "demo": true,
+  "dataDir": "data/demo",
+  "site": {
+    "title": "Polaris",
+    "subtitle": "全球节点 · 实时探针",
+    "tagline": "让每一条线路，都清晰可见。",
+    "description": "从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。",
+    "footer": "Polaris · 自建探针面板 · 当前为演示数据",
+    "locale": "zh-CN",
+    "hub": {
+      "name": "上海",
+      "lat": 31.2304,
+      "lon": 121.4737
+    },
+    "refreshSeconds": 10,
+    "public": true,
+    "showAddress": false,
+    "showDetails": true,
+    "historyDays": 35
+  },
+  "thresholds": {
+    "latencyWarnMs": 350,
+    "cpuWarnPercent": 80,
+    "memWarnPercent": 85,
+    "diskWarnPercent": 90,
+    "tlsWarnDays": 14,
+    "failureThreshold": 2
+  },
+  "targets": [
+    {
+      "id": "hk-core",
+      "name": "香港 · 核心",
+      "group": "香港",
+      "country": "HK",
+      "city": "香港",
+      "lat": 22.3193,
+      "lon": 114.1694,
+      "type": "https",
+      "url": "https://hk-core.example.com/health",
+      "intervalSeconds": 20,
+      "tls": true,
+      "services": [
+        "nginx",
+        "xray"
+      ],
+      "tags": [
+        "主力",
+        "Reality"
+      ]
+    },
+    {
+      "id": "hk-edge",
+      "name": "香港 · 高防",
+      "group": "香港",
+      "country": "HK",
+      "city": "香港",
+      "lat": 22.352,
+      "lon": 114.128,
+      "type": "tcp",
+      "host": "hk-edge.example.com",
+      "port": 8443,
+      "intervalSeconds": 20,
+      "services": [
+        "nginx"
+      ],
+      "tags": [
+        "高防",
+        "WS-TLS"
+      ]
+    },
+    {
+      "id": "jp-tokyo",
+      "name": "东京 · 主节点",
+      "group": "日本",
+      "country": "JP",
+      "city": "东京",
+      "lat": 35.6762,
+      "lon": 139.6503,
+      "type": "https",
+      "url": "https://jp-tokyo.example.com/",
+      "intervalSeconds": 20,
+      "tls": true,
+      "services": [
+        "nginx",
+        "xray"
+      ],
+      "tags": [
+        "主力",
+        "VLESS"
+      ]
+    },
+    {
+      "id": "sg-relay",
+      "name": "新加坡 · 中转",
+      "group": "新加坡",
+      "country": "SG",
+      "city": "新加坡",
+      "lat": 1.3521,
+      "lon": 103.8198,
+      "type": "tcp",
+      "host": "sg-relay.example.com",
+      "port": 443,
+      "intervalSeconds": 20,
+      "services": [
+        "hysteria-server"
+      ],
+      "tags": [
+        "中转",
+        "Hysteria2"
+      ]
+    },
+    {
+      "id": "us-lax",
+      "name": "洛杉矶 · 落地",
+      "group": "美国",
+      "country": "US",
+      "city": "洛杉矶",
+      "lat": 34.0522,
+      "lon": -118.2437,
+      "type": "https",
+      "url": "https://us-lax.example.com/",
+      "intervalSeconds": 30,
+      "tls": true,
+      "services": [
+        "nginx"
+      ],
+      "tags": [
+        "落地"
+      ]
+    },
+    {
+      "id": "de-fra",
+      "name": "法兰克福 · 落地",
+      "group": "德国",
+      "country": "DE",
+      "city": "法兰克福",
+      "lat": 50.1109,
+      "lon": 8.6821,
+      "type": "https",
+      "url": "https://de-fra.example.com/",
+      "intervalSeconds": 30,
+      "tls": true,
+      "services": [
+        "nginx",
+        "xray"
+      ],
+      "tags": [
+        "落地",
+        "TLS 临期"
+      ]
+    },
+    {
+      "id": "uk-lon",
+      "name": "伦敦 · 中转",
+      "group": "英国",
+      "country": "GB",
+      "city": "伦敦",
+      "lat": 51.5072,
+      "lon": -0.1276,
+      "type": "tcp",
+      "host": "uk-lon.example.com",
+      "port": 2097,
+      "intervalSeconds": 30,
+      "services": [
+        "hysteria-server"
+      ],
+      "tags": [
+        "中转",
+        "Hysteria2"
+      ]
+    },
+    {
+      "id": "au-syd",
+      "name": "悉尼 · 备用",
+      "group": "澳大利亚",
+      "country": "AU",
+      "city": "悉尼",
+      "lat": -33.8688,
+      "lon": 151.2093,
+      "type": "tcp",
+      "host": "au-syd.example.com",
+      "port": 443,
+      "intervalSeconds": 30,
+      "services": [
+        "nginx"
+      ],
+      "tags": [
+        "备用"
+      ]
+    },
+    {
+      "id": "kr-seo",
+      "name": "首尔 · 落地",
+      "group": "韩国",
+      "country": "KR",
+      "city": "首尔",
+      "lat": 37.5665,
+      "lon": 126.978,
+      "type": "agent",
+      "agentKey": "demo-agent-key-kr-seo",
+      "intervalSeconds": 30,
+      "services": [
+        "nginx",
+        "xray",
+        "hysteria-server"
+      ],
+      "tags": [
+        "Agent",
+        "游戏"
+      ]
+    },
+    {
+      "id": "in-bom",
+      "name": "孟买 · 边缘",
+      "group": "印度",
+      "country": "IN",
+      "city": "孟买",
+      "lat": 19.076,
+      "lon": 72.8777,
+      "type": "agent",
+      "agentKey": "demo-agent-key-in-bom",
+      "intervalSeconds": 30,
+      "services": [
+        "nginx",
+        "xray"
+      ],
+      "tags": [
+        "Agent",
+        "边缘"
+      ]
+    }
+  ]
+}

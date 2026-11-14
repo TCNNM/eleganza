@@ -1,0 +1,98 @@
+{
+  "dataDir": "data",
+  "site": {
+    "title": "Polaris",
+    "subtitle": "全球节点 · 实时探针",
+    "tagline": "让每一条线路，都清晰可见。",
+    "description": "从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。",
+    "footer": "Polaris · 自建探针面板",
+    "locale": "zh-CN",
+    "hub": {
+      "name": "上海",
+      "lat": 31.2304,
+      "lon": 121.4737
+    },
+    "refreshSeconds": 15,
+    "public": true,
+    "showAddress": false,
+    "showDetails": true,
+    "trustProxy": false,
+    "historyDays": 35
+  },
+  "thresholds": {
+    "latencyWarnMs": 350,
+    "cpuWarnPercent": 80,
+    "memWarnPercent": 85,
+    "diskWarnPercent": 90,
+    "tlsWarnDays": 14,
+    "failureThreshold": 2
+  },
+  "auth": {
+    "passwordSha256": "",
+    "sessionHours": 12,
+    "mcpToken": ""
+  },
+  "notifications": {
+    "webhookUrl": "",
+    "telegram": {
+      "botToken": "",
+      "chatId": ""
+    },
+    "notifyOnRecovery": true,
+    "timeoutMs": 8000
+  },
+  "targets": [
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "group": "示例",
+      "country": "US",
+      "city": "Anycast",
+      "lat": 37.7749,
+      "lon": -122.4194,
+      "type": "https",
+      "url": "https://www.cloudflare.com/",
+      "intervalSeconds": 30,
+      "tls": true,
+      "services": [],
+      "tags": [
+        "示例"
+      ]
+    },
+    {
+      "id": "dns-tcp",
+      "name": "1.1.1.1 · DNS",
+      "group": "示例",
+      "country": "US",
+      "city": "Anycast",
+      "lat": 40.7128,
+      "lon": -74.006,
+      "type": "tcp",
+      "host": "1.1.1.1",
+      "port": 53,
+      "intervalSeconds": 30,
+      "services": [],
+      "tags": [
+        "示例"
+      ]
+    },
+    {
+      "id": "my-agent-node",
+      "name": "自建 VPS",
+      "group": "示例",
+      "country": "SG",
+      "city": "新加坡",
+      "lat": 1.3521,
+      "lon": 103.8198,
+      "type": "agent",
+      "agentKey": "请替换为随机字符串-openssl-rand-hex-24",
+      "intervalSeconds": 30,
+      "services": [
+        "nginx"
+      ],
+      "tags": [
+        "Agent"
+      ]
+    }
+  ]
+}

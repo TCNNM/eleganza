@@ -1,0 +1,18 @@
+# Polaris 反向代理示例：Caddy
+# Caddy 会自动申请证书、设置 X-Forwarded-Proto。
+# 使用前把 config.json 的 site.trustProxy 设为 true。
+
+status.example.com {
+    encode zstd gzip
+
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+    }
+
+    reverse_proxy 127.0.0.1:8787 {
+        transport http {
+            read_timeout 30s
+        }
+    }
+}

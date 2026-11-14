@@ -1,0 +1,21 @@
+services:
+  polaris:
+    build: .
+    image: polaris-probe:latest
+    container_name: polaris
+    restart: unless-stopped
+    ports:
+      # 只监听本机，由 Caddy / Nginx 对外提供 HTTPS
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data
+    environment:
+      TZ: Asia/Shanghai
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
