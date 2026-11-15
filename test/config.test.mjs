@@ -28,7 +28,6 @@ test('loadConfig applies defaults and normalises targets', async () => {
   assert.equal(config.accounts.required, false);
   assert.equal(config.accounts.sessionHours, 168);
   assert.equal(config.accounts.allowRegistration, false);
-  assert.equal(config.auth.mcpToken, '');
   assert.equal(config.targets.length, 2);
   const web = config.targets[0];
   assert.equal(web.type, 'https');

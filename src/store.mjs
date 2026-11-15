@@ -667,6 +667,7 @@ export class Store {
         locale: this.site.locale,
         hub: this.site.hub,
         refreshSeconds: this.site.refreshSeconds,
+        historyDays: this.site.historyDays,
         showAddress: this.site.showAddress,
       },
       summary: {

@@ -3,6 +3,7 @@ import { sparkline, TimeChart } from './charts.js';
 import {
   ACCENTS,
   DEFAULT_PREFERENCES,
+  STYLE_PRESETS,
   accentColor,
   applyPreferences,
   loadPreferences,
@@ -101,8 +102,12 @@ const els = {
   nodesNote: $('#nodes-note'),
   incidentList: $('#incident-list'),
   incidentMeta: $('#incident-meta'),
-  restSnippet: $('#rest-snippet'),
-  mcpSnippet: $('#mcp-snippet'),
+  infoNodes: $('#info-nodes'),
+  infoChecks: $('#info-checks'),
+  infoHistory: $('#info-history'),
+  infoUser: $('#info-user'),
+  infoSync: $('#info-sync'),
+  infoVersion: $('#info-version'),
   footerText: $('#footer-text'),
   footerRefresh: $('#footer-refresh'),
   globeToggle: $('#globe-toggle'),
@@ -306,7 +311,7 @@ function renderShell(overview) {
   renderBanner(overview);
   renderFilters(overview);
   renderNodes();
-  renderSnippets(overview);
+  renderInfoPanel(overview);
   if (globe) {
     if (site.hub) globe.hub = site.hub;
     globe.setData(targets);
@@ -559,20 +564,17 @@ function renderIncidents() {
   }).join('');
 }
 
-function renderSnippets(overview) {
-  const origin = location.origin;
-  const sample = overview.targets[0]?.id || 'hk-core';
-  els.restSnippet.textContent = `curl -s ${origin}/api/overview | jq\ncurl -s "${origin}/api/targets/${sample}?range=24h" | jq\ncurl -s "${origin}/api/incidents?limit=20" | jq`;
-  const token = '<MCP_TOKEN>';
-  els.mcpSnippet.textContent = JSON.stringify({
-    mcpServers: {
-      eleganza: {
-        type: 'http',
-        url: `${origin}/mcp`,
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    },
-  }, null, 2);
+function renderInfoPanel(overview) {
+  if (!els.infoNodes) return;
+  const user = state.auth?.user;
+  els.infoNodes.textContent = `${overview.summary.total} 个`;
+  els.infoChecks.textContent = formatNumber(overview.summary.checks30d);
+  els.infoHistory.textContent = `${overview.site.historyDays || 35} 天`;
+  els.infoUser.textContent = user
+    ? `${user.displayName} · ${user.role === 'admin' ? '管理员' : '成员'}`
+    : (state.auth?.required ? '需要登录' : '访客');
+  els.infoSync.textContent = formatRelative(overview.summary.lastUpdated);
+  els.infoVersion.textContent = `v${overview.version || '1.2.0'}`;
 }
 
 // ------------------------------------------------------------------ drawer
@@ -981,7 +983,12 @@ function schedulePreferenceSync() {
 }
 
 function setPreference(key, value) {
-  applyAppearance({ ...state.prefs, [key]: value });
+  const next = { ...state.prefs, [key]: value };
+  if (key === 'style') {
+    const preset = STYLE_PRESETS[value];
+    if (preset) next.accent = preset.accent;
+  }
+  applyAppearance(next);
   schedulePreferenceSync();
 }
 
@@ -1024,6 +1031,7 @@ function updateAccountUI() {
     els.accountButton.setAttribute('aria-label', `账号：${user.displayName}`);
   }
   syncAppearanceControls();
+  if (state.overview) renderInfoPanel(state.overview);
 }
 
 function renderAccountPopover() {
@@ -1619,24 +1627,9 @@ function init() {
     closePopovers();
     if (state.selectedId) closeDrawer();
   });
-  document.addEventListener('click', async (event) => {
+  document.addEventListener('click', (event) => {
     if (!event.target.closest('.popover') && !event.target.closest('#appearance-button') && !event.target.closest('#account-button')) {
       closePopovers();
-    }
-    const button = event.target.closest('[data-copy-target]');
-    if (!button) return;
-    const target = document.getElementById(button.dataset.copyTarget);
-    if (!target) return;
-    try {
-      await navigator.clipboard.writeText(target.textContent);
-      button.textContent = '已复制';
-      button.classList.add('is-done');
-      setTimeout(() => {
-        button.textContent = '复制';
-        button.classList.remove('is-done');
-      }, 1600);
-    } catch {
-      toast('复制失败，请手动选择文本');
     }
   });
   document.addEventListener('visibilitychange', () => {

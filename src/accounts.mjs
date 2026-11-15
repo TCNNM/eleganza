@@ -11,7 +11,7 @@ const MAX_USERS = 500;
 const USERNAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{2,31}$/;
 
 export const DEFAULT_PREFERENCES = Object.freeze({
-  theme: 'dark',
+  style: 'cosmos',
   accent: 'mint',
   density: 'comfortable',
   effects: true,
@@ -19,8 +19,8 @@ export const DEFAULT_PREFERENCES = Object.freeze({
 });
 
 export const PREFERENCE_OPTIONS = Object.freeze({
-  theme: ['dark', 'light'],
-  accent: ['mint', 'azure', 'violet', 'amber', 'rose', 'champagne'],
+  style: ['cosmos', 'paper', 'terminal', 'gilded'],
+  accent: ['mint', 'azure', 'violet', 'amber', 'rose', 'champagne', 'lime'],
   density: ['comfortable', 'compact'],
   effects: [true, false],
   motion: [true, false],
@@ -138,7 +138,12 @@ export class Accounts {
       displayName: String(user.displayName || user.username || ''),
       role: user.role === 'admin' ? 'admin' : 'member',
       passwordHash: String(user.passwordHash || ''),
-      preferences: { ...DEFAULT_PREFERENCES, ...(user.preferences || {}) },
+      preferences: (() => {
+        const stored = user.preferences || {};
+        const merged = { ...DEFAULT_PREFERENCES, ...stored };
+        if (!stored.style) merged.style = stored.theme === 'light' ? 'paper' : 'cosmos';
+        return merged;
+      })(),
       createdAt: Number(user.createdAt) || Date.now(),
       updatedAt: Number(user.updatedAt) || Date.now(),
       lastLoginAt: user.lastLoginAt ? Number(user.lastLoginAt) : null,

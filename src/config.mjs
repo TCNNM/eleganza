@@ -152,15 +152,10 @@ export function loadConfig(file, { demo = false } = {}) {
     setupToken: raw.accounts?.setupToken ? String(raw.accounts.setupToken) : '',
   };
 
-  const auth = {
-    mcpToken: raw.auth?.mcpToken || '',
-  };
-
   return {
     file,
     isDemo,
     site,
-    auth,
     accounts,
     thresholds,
     targets,

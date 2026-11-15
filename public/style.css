@@ -81,6 +81,13 @@ html[data-accent="champagne"] {
   --accent-2-rgb: 243, 221, 176;
 }
 
+html[data-accent="lime"] {
+  --accent: #7cffb2;
+  --accent-2: #2dd4bf;
+  --accent-rgb: 124, 255, 178;
+  --accent-2-rgb: 45, 212, 191;
+}
+
 *,
 *::before,
 *::after {
@@ -998,8 +1005,8 @@ svg {
   flex: 1;
   min-width: 2px;
   border-radius: 2px 2px 0 0;
-  background: linear-gradient(180deg, rgba(107, 155, 255, 0.95), rgba(107, 155, 255, 0.22));
-  box-shadow: 0 0 8px -2px rgba(107, 155, 255, 0.55);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.95), rgba(var(--accent-rgb), 0.22));
+  box-shadow: 0 0 8px -2px rgba(var(--accent-rgb), 0.55);
 }
 
 .kpi-ring-row {

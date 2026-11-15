@@ -4,9 +4,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { parseCookies, readJsonBody, safeEqual } from './util.mjs';
 import { AccountError, SESSION_COOKIE } from './accounts.mjs';
-import { TOOLS } from './mcp.mjs';
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -24,7 +23,7 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
-export function createEleganzaServer({ config, store, accounts, mcp, publicDir, version = VERSION, log = console }) {
+export function createEleganzaServer({ config, store, accounts, publicDir, version = VERSION, log = console }) {
   const staticDir = path.resolve(publicDir);
   const loginAttempts = new Map();
   const agentAttempts = new Map();
@@ -106,12 +105,6 @@ export function createEleganzaServer({ config, store, accounts, mcp, publicDir, 
 
   function clearCookie(req) {
     return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isSecure(req) ? '; Secure' : ''}`;
-  }
-
-  function hasMcpToken(req) {
-    if (!config.auth.mcpToken) return false;
-    const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
-    return Boolean(match && safeEqual(match[1].trim(), config.auth.mcpToken));
   }
 
   function readAllowed(req) {
@@ -403,51 +396,6 @@ export function createEleganzaServer({ config, store, accounts, mcp, publicDir, 
     });
   }
 
-  async function handleMcp(req, res) {
-    const authorized = readAllowed(req) || hasMcpToken(req);
-    if (!authorized) {
-      return sendJson(req, res, 401, { error: '需要登录或 Bearer Token' });
-    }
-    if (req.method === 'GET') {
-      return sendJson(req, res, 200, {
-        name: 'eleganza',
-        version,
-        protocolVersion: '2025-06-18',
-        transport: 'streamable-http (POST JSON-RPC)',
-        endpoint: '/mcp',
-        tools: TOOLS.map((tool) => ({ name: tool.name, description: tool.description })),
-      });
-    }
-    if (req.method !== 'POST') {
-      res.setHeader('Allow', 'GET, POST');
-      return sendJson(req, res, 405, { error: 'Method Not Allowed' });
-    }
-    let body;
-    try {
-      body = await readJsonBody(req, { limit: 256 * 1024 });
-    } catch (error) {
-      return sendJson(req, res, error.statusCode || 400, { error: error.message });
-    }
-    if (Array.isArray(body)) {
-      const results = [];
-      for (const message of body) {
-        const result = await mcp.handle(message);
-        if (result) results.push(result);
-      }
-      if (!results.length) {
-        res.writeHead(202);
-        return res.end();
-      }
-      return sendJson(req, res, 200, results);
-    }
-    const result = await mcp.handle(body);
-    if (!result) {
-      res.writeHead(202);
-      return res.end();
-    }
-    return sendJson(req, res, 200, result);
-  }
-
   async function route(req, res) {
     securityHeaders(req, res);
     const url = parseUrl(req);
@@ -457,8 +405,6 @@ export function createEleganzaServer({ config, store, accounts, mcp, publicDir, 
     } catch {
       return sendJson(req, res, 400, { error: '请求路径不合法' });
     }
-
-    if (pathname === '/mcp' || pathname === '/api/mcp') return handleMcp(req, res);
 
     if (pathname === '/healthz' || pathname === '/api/healthz') {
       return sendJson(req, res, 200, {
@@ -518,7 +464,7 @@ export function createEleganzaServer({ config, store, accounts, mcp, publicDir, 
         return sendJson(req, res, 405, { error: 'Method Not Allowed' });
       }
       if (pathname === '/api/overview') {
-        return sendJson(req, res, 200, store.overview());
+        return sendJson(req, res, 200, { ...store.overview(), version });
       }
       if (pathname === '/api/incidents') {
         const limit = Number(url.searchParams.get('limit') || 50);
@@ -546,6 +492,6 @@ export function createEleganzaServer({ config, store, accounts, mcp, publicDir, 
       else res.end();
     });
   });
-  server.app = { config, store, accounts, mcp };
+  server.app = { config, store, accounts };
   return server;
 }

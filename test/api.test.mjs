@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { Store } from '../src/store.mjs';
 import { Accounts } from '../src/accounts.mjs';
-import { McpServer } from '../src/mcp.mjs';
 import { createEleganzaServer } from '../src/app.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,12 +20,10 @@ async function bootServer(configPayload) {
   const store = new Store({ config, log: quiet });
   const accounts = new Accounts({ config, dataDir: config.dataDir, log: quiet });
   await accounts.init();
-  const mcp = new McpServer({ store, config });
   const server = createEleganzaServer({
     config,
     store,
     accounts,
-    mcp,
     publicDir: path.join(root, 'public'),
     log: quiet,
   });
@@ -57,8 +54,8 @@ function cookieFrom(response) {
   return response.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
 }
 
-test('public API, static assets, agent ingest and MCP', async () => {
-  const server = await bootServer({ ...baseConfig, auth: { mcpToken: 'mcp-secret' } });
+test('public status UI, static assets and agent ingest', async () => {
+  const server = await bootServer(baseConfig);
   try {
     const status = await (await fetch(`${server.base}/api/auth/status`)).json();
     assert.equal(status.required, false);
@@ -120,35 +117,6 @@ test('public API, static assets, agent ingest and MCP', async () => {
     assert.equal(node.target.metrics.cpu, 42.5);
     assert.equal(node.services[0].name, 'nginx');
 
-    const init = await fetch(`${server.base}/mcp`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }),
-    });
-    assert.equal(init.status, 200);
-    assert.equal((await init.json()).result.serverInfo.name, 'eleganza');
-
-    const tools = await (await fetch(`${server.base}/mcp`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
-    })).json();
-    assert.deepEqual(tools.result.tools.map((tool) => tool.name), ['overview', 'list_nodes', 'get_node', 'get_history', 'list_incidents']);
-
-    const call = await (await fetch(`${server.base}/mcp`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_node', arguments: { node_id: 'agent' } } }),
-    })).json();
-    assert.equal(call.result.isError, false);
-    assert.match(call.result.content[0].text, /test-box/);
-
-    const notification = await fetch(`${server.base}/mcp`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
-    });
-    assert.equal(notification.status, 202);
   } finally {
     await server.close();
   }
@@ -159,7 +127,6 @@ test('account system: setup, login, preferences, admin and access control', asyn
     ...baseConfig,
     site: { ...baseConfig.site, title: 'Private Eleganza' },
     accounts: { required: true, allowRegistration: false, sessionHours: 168, setupToken: 'test-setup-token' },
-    auth: { mcpToken: 'mcp-secret' },
   });
   try {
     assert.equal((await fetch(`${server.base}/api/overview`)).status, 401);
@@ -195,11 +162,11 @@ test('account system: setup, login, preferences, admin and access control', asyn
     const prefs = await fetch(`${server.base}/api/account`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', cookie: adminCookie },
-      body: JSON.stringify({ preferences: { theme: 'light', accent: 'champagne', density: 'compact', effects: false, motion: false } }),
+      body: JSON.stringify({ preferences: { style: 'paper', accent: 'champagne', density: 'compact', effects: false, motion: false } }),
     });
     assert.equal(prefs.status, 200);
     const prefsBody = await prefs.json();
-    assert.equal(prefsBody.user.preferences.theme, 'light');
+    assert.equal(prefsBody.user.preferences.style, 'paper');
     assert.equal(prefsBody.user.preferences.accent, 'champagne');
 
     const created = await fetch(`${server.base}/api/admin/users`, {
@@ -259,9 +226,8 @@ test('account system: setup, login, preferences, admin and access control', asyn
     assert.equal((await fetch(`${server.base}/api/auth/logout`, { method: 'POST', headers: { cookie: adminCookie } })).status, 200);
     assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: adminCookie } })).status, 401);
 
-    assert.equal((await fetch(`${server.base}/mcp`)).status, 401);
-    assert.equal((await fetch(`${server.base}/mcp`, { headers: { authorization: 'Bearer mcp-secret' } })).status, 200);
-    assert.equal((await fetch(`${server.base}/mcp`, { headers: { authorization: 'Bearer nope' } })).status, 401);
+    assert.equal((await fetch(`${server.base}/mcp`)).status, 404);
+    assert.equal((await fetch(`${server.base}/api/mcp`)).status, 401);
 
     assert.equal((await fetch(`${server.base}/`)).status, 200);
   } finally {

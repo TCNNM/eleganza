@@ -5,7 +5,6 @@ import { Store } from './src/store.mjs';
 import { Prober } from './src/probe.mjs';
 import { seedDemoData, DemoSource } from './src/demo.mjs';
 import { Accounts } from './src/accounts.mjs';
-import { McpServer } from './src/mcp.mjs';
 import { Notifier } from './src/notify.mjs';
 import { createEleganzaServer, VERSION } from './src/app.mjs';
 
@@ -35,13 +34,11 @@ const host = argValue('--host') || process.env.ELEGANZA_HOST || '127.0.0.1';
 
 const store = new Store({ config });
 const accounts = new Accounts({ config, dataDir: config.dataDir });
-const mcp = new McpServer({ store, config });
 const notifier = new Notifier({ config });
 const server = createEleganzaServer({
   config,
   store,
   accounts,
-  mcp,
   publicDir: path.join(PROJECT_ROOT, 'public'),
 });
 

@@ -31,7 +31,7 @@ test('setup creates the first admin and consumes the setup token', async () => {
   const result = await accounts.setup({ username: 'admin', password: 'password123', displayName: 'Admin', token: 'setup-token' }, { ip: '127.0.0.1' });
   assert.equal(result.user.role, 'admin');
   assert.equal(accounts.setupRequired, false);
-  assert.equal(result.user.preferences.theme, 'dark');
+  assert.equal(result.user.preferences.style, 'cosmos');
   const session = accounts.resolveSession(result.token);
   assert.equal(session.user.username, 'admin');
   await assert.rejects(accounts.setup({ username: 'other', password: 'password123', token: 'setup-token' }), /已初始化/);
@@ -61,7 +61,7 @@ test('preferences and display names are validated', async () => {
   const user = await accounts.createUser({ username: 'alice', password: 'alice-password', displayName: 'Alice' });
   const updated = accounts.updateOwnProfile(user.id, {
     displayName: '艾丽丝',
-    preferences: { theme: 'light', accent: 'champagne', density: 'compact', effects: false, motion: false },
+    preferences: { style: 'paper', accent: 'champagne', density: 'compact', effects: false, motion: false },
   });
   assert.equal(updated.displayName, '艾丽丝');
   assert.equal(updated.preferences.accent, 'champagne');
@@ -104,7 +104,7 @@ test('admin rules protect the last administrator and self-deletion', async () =>
 test('accounts and sessions persist across restarts', async () => {
   const { accounts, config } = await makeAccounts();
   const admin = await accounts.createUser({ username: 'admin', password: 'admin-password', role: 'admin' });
-  accounts.updateOwnProfile(admin.id, { preferences: { theme: 'light', accent: 'azure' } });
+  accounts.updateOwnProfile(admin.id, { preferences: { style: 'gilded', accent: 'azure' } });
   const session = accounts.createSession(admin);
   await accounts.close();
 

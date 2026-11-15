@@ -1,7 +1,7 @@
 # Eleganza · 全球节点探针面板
 
 > 一个类似 [Meridian](https://github.com/Dokoyamo-Lisa/Meridian) 状态页面的轻量探针面板：
-> 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、账号系统、外观定制、REST API 与 MCP。
+> 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、账号系统，以及四套完整的视觉风格。
 >
 > **零第三方依赖**：后端只用 Node.js 内置模块，前端原生 HTML/CSS/JS，不需要构建。
 
@@ -18,7 +18,7 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 | 代理用户、订阅、流量计费 | 有 | 无（只有面板账号） |
 | 实时地球、延迟、可用率、30 天历史 | 有 | 有 |
 | CPU / 内存 / 磁盘 / 服务状态 | 有 | 通过 Agent 上报 |
-| REST API / MCP | 有 | 有 |
+| 对外 API / MCP | 有 | 无（有意移除） |
 | 依赖 | Go 服务端 + Agent | 一个 Node 进程 |
 
 如果你已经用 3x-ui、XrayR 或自己的脚本管节点，只缺一个“一屏看全部”的状态页，Eleganza 就是为这个场景写的。
@@ -33,8 +33,8 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 - **事件时间线**：连续失败达到阈值后自动开事件，恢复后自动闭环，并记录持续时长。
 - **通知**：故障 / 恢复可推送通用 Webhook 或 Telegram。
 - **账号系统**：首次启动初始化管理员，支持管理员 / 成员、登录会话、创建与禁用账号、重置密码；可选开放注册。
-- **外观定制**：右上角调色板切换深色 / 浅色、6 种强调色、信息密度、背景光效与动效；登录后偏好跟随账号同步。
-- **API 与 MCP**：只读探测数据 + 账号管理接口；同一份数据通过 MCP 暴露给 Cursor、Claude Code 等 AI 客户端。
+- **整体风格**：右上角调色板切换「深空 / 纸境 / 终端 / 鎏金」四套完整视觉风格，连带字体、卡片形状、背景、弹窗和详情抽屉一起变化；另有 7 种强调色、密度、光效与动效。
+- **无对外接口**：不提供 REST API / MCP，面板只通过同源页面读取数据；Agent 上报使用独立 agentKey。
 - **能屈能伸**：`npm run demo` 直接看演示；正式环境一个 `config.json` + 一条 `node server.mjs` 即可。
 
 ![节点详情](docs/drawer.png)
@@ -43,14 +43,18 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 
 ![用户管理](docs/accounts.png)
 
-![浅色主题](docs/light.png)
+![纸境风格](docs/paper.png)
+
+![终端风格](docs/terminal.png)
+
+![鎏金风格](docs/gilded.png)
 
 ## 架构
 
 ```text
                         ┌──────────────────────────────┐
-   浏览器 / API / MCP ──▶│  Eleganza（单进程 Node）        │
-                        │  · HTTP 静态页 + REST + MCP   │
+   浏览器 ──────────────▶│  Eleganza（单进程 Node）        │
+                        │  · 静态页 + 同源数据读取      │
                         │  · 主动 HTTP / TCP 探针        │
                         │  · 内存桶 + data/state.json   │
                         └───────┬──────────────▲────────┘
@@ -143,13 +147,13 @@ cd /opt/eleganza && sudo -u eleganza node tools/create-admin.mjs admin
 
 ## 配置
 
-顶层只有 `site`、`accounts`、`thresholds`、`auth`、`notifications`、`targets` 和可选的 `dataDir` / `demo`。
+顶层只有 `site`、`accounts`、`thresholds`、`notifications`、`targets` 和可选的 `dataDir` / `demo`。
 
 ### site
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `title` | `Eleganza` | 页面标题 / API 名称 |
+| `title` | `Eleganza` | 页面标题 |
 | `subtitle` | 全球节点 · 实时探针 | 副标题 |
 | `tagline` | 让每一条线路，都清晰可见。 | 首页主文案 |
 | `description` | 一段说明 | 首页描述 |
@@ -167,16 +171,10 @@ cd /opt/eleganza && sudo -u eleganza node tools/create-admin.mjs admin
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `required` | `false` | `true` 时整个面板的数据和 MCP 都需要登录 |
+| `required` | `false` | `true` 时整个面板的数据都需要登录 |
 | `allowRegistration` | `false` | 是否允许访客自行注册成员账号 |
 | `sessionHours` | `168` | 登录会话有效期（1–8760 小时） |
 | `setupToken` | 空 | 首次初始化管理员的一次性令牌；留空时启动随机生成并打印在终端 |
-
-### auth
-
-| 字段 | 默认 | 说明 |
-|---|---|---|
-| `mcpToken` | 空 | MCP 的 Bearer Token；`accounts.required: true` 时给 AI 客户端使用 |
 
 ### thresholds
 
@@ -276,8 +274,7 @@ node tools/create-admin.mjs admin --reset
     "allowRegistration": false,
     "sessionHours": 168,
     "setupToken": ""
-  },
-  "auth": { "mcpToken": "另一个随机串" }
+  }
 }
 ```
 
@@ -296,13 +293,13 @@ node tools/create-admin.mjs admin --reset
 
 右上角刷新按钮左侧的调色板按钮打开外观面板：
 
-- **主题**：深色 / 浅色；浅色模式下地球卡片仍保留深色星空，作为视觉焦点
-- **强调色**：薄荷、天青、紫罗兰、琥珀、玫瑰、香槟
+- **整体风格**：深空（玻璃 + 极光）、纸境（暖白编辑排版 + 衬线字体）、终端（等宽 + 网格 + 直角）、鎏金（深色 + 香槟金 + 衬线标题）
+- **强调色**：薄荷、天青、紫罗兰、琥珀、玫瑰、香槟、青柠
 - **信息密度**：舒适 / 紧凑
 - **背景光效**：极光、网格与噪点开关
 - **动效与地球旋转**：关闭后减少动画并暂停地球自转
 
-已登录时偏好写入 `data/accounts.json` 并跟随账号；未登录时保存在当前浏览器的 localStorage。地球、曲线、按钮和状态卡会一起响应强调色。
+风格不是换一层颜色：顶栏、首页大字、卡片圆角与边框、按钮、弹窗、详情抽屉、图表背景和整体排版都会一并切换。已登录时偏好写入 `data/accounts.json` 并跟随账号；未登录时保存在当前浏览器的 localStorage。
 
 ### 通知
 
@@ -359,133 +356,16 @@ ELEGANZA_URL=https://... ELEGANZA_TOKEN=... bash agent/eleganza-agent.sh --print
 
 Agent 是**只读**的：只读取 `/proc`、`df` 和 `systemctl is-active`，不会修改系统；但 unit 默认以 root 运行（服务状态检查最省事），已加 `ProtectSystem=strict` 等加固。不需要服务检查时可以把 `ELEGANZA_SERVICES` 留空，并考虑改成非 root 用户。
 
-## REST API
+## 接口策略
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/overview` | 总览：summary + 所有节点 + 今日/30 天数据 |
-| GET | `/api/targets/:id?range=1h\|24h\|7d\|30d` | 节点详情与时间序列 |
-| GET | `/api/incidents?limit=20` | 事件列表 |
-| GET | `/api/healthz` | 健康检查（无需登录） |
-| GET | `/api/auth/status` | 登录状态、是否首次初始化、当前账号 |
-| POST | `/api/auth/setup` | 首次初始化管理员（需要 setup token） |
-| POST | `/api/auth/login` / `/api/auth/logout` | 账号登录 / 退出 |
-| POST | `/api/auth/register` | 自注册（需 `accounts.allowRegistration: true`） |
-| GET / PATCH | `/api/account` | 个人资料、外观偏好、修改密码 |
-| GET / POST | `/api/admin/users` | 管理员查看 / 创建账号 |
-| PATCH / DELETE | `/api/admin/users/:id` | 管理员修改角色、禁用、重置密码、删除 |
-| POST | `/api/agent/report` | Agent 上报（Bearer Token） |
-| GET / POST | `/mcp` | MCP 元信息 / JSON-RPC |
+Eleganza **不提供对外 REST API，也不提供 MCP**。面板通过同源页面读取服务端数据，账号、外观偏好和 Agent 上报都使用内部端点；这些端点不对外承诺兼容性，也不提供公开 Token。
 
-```bash
-curl -s https://status.example.com/api/overview | jq '.summary'
-curl -s "https://status.example.com/api/targets/hk-core?range=24h" | jq '.summary'
-curl -s "https://status.example.com/api/incidents?limit=10" | jq
-```
+这样做的取舍：
 
-需要登录时先拿会话 Cookie：
-
-```bash
-curl -c cookies.txt -X POST https://status.example.com/api/auth/login \
-  -H 'content-type: application/json' \
-  -d '{"username":"admin","password":"..."}'
-
-curl -b cookies.txt https://status.example.com/api/overview | jq '.summary'
-
-# 保存外观偏好（登录后）
-curl -b cookies.txt -X PATCH https://status.example.com/api/account \
-  -H 'content-type: application/json' \
-  -d '{"preferences":{"theme":"light","accent":"champagne","density":"compact","effects":true,"motion":true}}'
-```
-
-管理员创建成员：
-
-```bash
-curl -b cookies.txt -X POST https://status.example.com/api/admin/users \
-  -H 'content-type: application/json' \
-  -d '{"username":"ops","password":"a-long-password","displayName":"运维","role":"member"}'
-```
-
-### Agent 上报格式
-
-```json
-{
-  "hostname": "sg-01",
-  "platform": "Debian GNU/Linux 12 (bookworm)",
-  "kernel": "6.1.0-28-amd64",
-  "agentVersion": "1.1.0",
-  "uptimeSeconds": 864000,
-  "cpu": { "usage": 37.5, "cores": 4, "model": "AMD EPYC 7B13" },
-  "memory": { "total": 8589934592, "used": 3221225472 },
-  "disks": [{ "mount": "/", "total": 85899345920, "used": 30064771072, "percent": 35 }],
-  "net": { "rxBytes": 1000000000, "txBytes": 500000000 },
-  "load": [0.4, 0.3, 0.2],
-  "services": [{ "name": "nginx", "active": true }],
-  "latencyMs": 12.5
-}
-```
-
-`latencyMs` 可选；其余字段缺失时按空值处理。服务端会做长度、百分比和数值范围清洗。
-
-## MCP
-
-`GET /mcp` 返回能力清单；`POST /mcp` 接受 JSON-RPC 2.0（Streamable HTTP，`application/json` 响应）。
-
-工具：
-
-| 工具 | 作用 |
-|---|---|
-| `overview` | 网络总览与所有节点摘要 |
-| `list_nodes` | 按状态 / 类型 / 地区过滤节点 |
-| `get_node` | 单节点详情（含事件、证书、资源） |
-| `get_history` | 延迟 / 可用率时间序列 |
-| `list_incidents` | 最近故障事件 |
-
-Cursor：
-
-```json
-{
-  "mcpServers": {
-    "eleganza": {
-      "url": "https://status.example.com/mcp",
-      "headers": { "Authorization": "Bearer <MCP_TOKEN>" }
-    }
-  }
-}
-```
-
-Claude Code：
-
-```bash
-claude mcp add --transport http eleganza https://status.example.com/mcp \
-  --header "Authorization: Bearer <MCP_TOKEN>"
-```
-
-Claude Desktop（需要 `mcp-remote` 转接）：
-
-```json
-{
-  "mcpServers": {
-    "eleganza": {
-      "command": "npx",
-      "args": [
-        "-y", "mcp-remote",
-        "https://status.example.com/mcp",
-        "--header", "Authorization: Bearer <MCP_TOKEN>"
-      ]
-    }
-  }
-}
-```
-
-也可以用 `curl` 直接验证：
-
-```bash
-curl -s https://status.example.com/mcp \
-  -H 'content-type: application/json' \
-  -H 'Authorization: Bearer <MCP_TOKEN>' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"overview","arguments":{}}}' | jq
-```
+- 面板只面向内部观测与账号协作，避免把节点信息再次复制到更多系统；
+- 减少 Token、跨域和权限配置面；
+- Agent 仍通过每个节点独立的 `agentKey` 上报，这是探针运行所必需的；
+- 如果确实需要自动化导出，可以在服务器本地读取 `data/state.json`，或另外部署采集服务。
 
 ## 暴露到公网
 
@@ -506,7 +386,7 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 
 - 不要把面板端口直接暴露公网；先在 TLS 后面，再考虑 `accounts.required: true`。
 - 首次初始化完成前不要公网暴露；初始化令牌只在终端打印。
-- 管理员密码用 16 位以上随机串；`auth.mcpToken` 单独生成，不要复用。
+- 管理员密码用 16 位以上随机串，不要与任何外部服务复用。
 - 每个成员使用独立账号，不共用管理员；离职后禁用或删除账号。
 - 每个 Agent 使用独立 `agentKey`；泄露后只改该节点并 reload。
 - 定期备份 `config.json` 和 `data/`（`accounts.json` 也在 `data/`）。
@@ -527,13 +407,12 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 eleganza/
 ├── server.mjs              # CLI 入口：加载配置、启动探针/演示、监听
 ├── src/
-│   ├── app.mjs             # HTTP 路由：静态页、REST、登录、MCP
+│   ├── app.mjs             # HTTP 路由：静态页、同源数据、账号
 │   ├── config.mjs          # 配置校验与归一化
 │   ├── store.mjs           # 采样、小时桶、30 天、事件、持久化
 │   ├── probe.mjs           # HTTP / HTTPS / TCP 探针与调度器
 │   ├── demo.mjs            # 确定性演示数据
 │   ├── accounts.mjs        # 账号、scrypt 密码、会话、权限
-│   ├── mcp.mjs             # MCP tools / resources
 │   ├── notify.mjs          # Webhook / Telegram
 │   └── util.mjs
 ├── public/
@@ -563,7 +442,7 @@ eleganza/
 ## 开发
 
 ```bash
-npm test          # 29 个测试：配置、探针、存储、账号、API、MCP、通知
+npm test          # 29 个测试：配置、探针、存储、账号、界面、通知
 npm run demo      # 演示模式
 npm run build:globe
 ```

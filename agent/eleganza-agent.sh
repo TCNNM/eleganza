@@ -18,7 +18,7 @@
 
 set -uo pipefail
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 ENV_FILE="${ELEGANZA_AGENT_ENV:-/etc/eleganza-agent.env}"
 if [ -r "$ENV_FILE" ]; then
   set -a

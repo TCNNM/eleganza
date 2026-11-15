@@ -24,9 +24,6 @@
     "sessionHours": 168,
     "setupToken": ""
   },
-  "auth": {
-    "mcpToken": ""
-  },
   "thresholds": {
     "latencyWarnMs": 350,
     "cpuWarnPercent": 80,
