@@ -325,7 +325,12 @@ function renderShell(overview) {
   els.heroDesc.textContent = site.description || '';
   els.footerText.textContent = site.footer || 'Eleganza';
   els.footerRefresh.textContent = '每 60 秒同步';
-  els.hubName.textContent = site.hub?.name || '探针中枢';
+  const hub = site.hub;
+  const hubLabel = hub
+    ? [hub.name, hub.city].filter(Boolean).join(' · ')
+    : '';
+  els.hubName.textContent = hubLabel || hub?.name || '探针中枢';
+  els.hubName.title = hub?.ip ? `面板服务器公网 IP：${hub.ip}` : '';
 
   const stateText = {
     operational: '系统运行正常',

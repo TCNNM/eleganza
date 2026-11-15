@@ -125,14 +125,21 @@ export class GeoLocator {
   }
 
   async applyPanelLocation(config, store) {
-    let location = null;
-    if (config.site.publicUrl) location = await this.locateUrl(config.site.publicUrl);
-    if (!location) location = await this.locateEgress();
+    // 面板服务器自己的出口 IP 优先；publicUrl 可能经过 CDN，不能代表安装机器。
+    let location = await this.locateEgress();
+    if (!location && config.site.publicUrl) location = await this.locateUrl(config.site.publicUrl);
     if (!location) return null;
-    const name = location.city || location.region || location.country || '探针中枢';
-    config.site.hub = { name, lat: location.lat, lon: location.lon };
+    const city = location.city || location.region || location.country || '';
+    config.site.hub = {
+      name: '面板服务器',
+      city,
+      country: location.country,
+      ip: location.ip,
+      lat: location.lat,
+      lon: location.lon,
+    };
     store.site.hub = config.site.hub;
-    this.log.info?.(`[geo] 面板中枢: ${name} (${location.ip})`);
+    this.log.info?.(`[geo] 探针中枢 = 面板服务器: ${city || '未知位置'} (${location.ip})`);
     return location;
   }
 
