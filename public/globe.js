@@ -13,6 +13,65 @@ const STATUS_TEXT = {
   pending: '待探测',
 };
 
+const GLOBE_PALETTES = {
+  cosmos: {
+    starsRgb: '196, 214, 240',
+    starAlpha: 1,
+    ocean: ['rgba(30, 50, 76, 0.55)', 'rgba(12, 22, 38, 0.72)', 'rgba(4, 8, 16, 0.92)'],
+    rim: 'rgba(120, 190, 210, 0.22)',
+    graticule: 'rgba(120, 158, 198, 0.09)',
+    graticuleRim: 'rgba(120, 158, 198, 0.05)',
+    land: ['rgba(100, 140, 182, 0.3)', 'rgba(128, 170, 212, 0.48)', 'rgba(172, 214, 242, 0.72)'],
+    labelBg: 'rgba(5, 10, 18, 0.82)',
+    labelText: 'rgba(226, 236, 248, 0.94)',
+    markerStroke: 'rgba(4, 10, 18, 0.9)',
+    font: '10px "Inter", "PingFang SC", "Microsoft YaHei", sans-serif',
+    status: STATUS_COLOR,
+  },
+  paper: {
+    starsRgb: '139, 112, 76',
+    starAlpha: 0.3,
+    ocean: ['rgba(252, 247, 236, 0.95)', 'rgba(242, 231, 211, 0.96)', 'rgba(226, 209, 181, 0.98)'],
+    rim: 'rgba(126, 96, 58, 0.35)',
+    graticule: 'rgba(126, 96, 58, 0.13)',
+    graticuleRim: 'rgba(126, 96, 58, 0.08)',
+    land: ['rgba(136, 111, 78, 0.34)', 'rgba(98, 77, 52, 0.5)', 'rgba(66, 51, 34, 0.7)'],
+    labelBg: 'rgba(253, 249, 241, 0.94)',
+    labelText: 'rgba(50, 41, 29, 0.96)',
+    markerStroke: 'rgba(251, 247, 239, 0.95)',
+    font: '10px "Iowan Old Style", "Palatino Linotype", Georgia, "Songti SC", serif',
+    status: { online: '#2f8f63', warning: '#b77a20', offline: '#c04a58', pending: '#6b6bb0' },
+  },
+  terminal: {
+    starsRgb: '108, 255, 174',
+    starAlpha: 0.7,
+    ocean: ['rgba(4, 20, 12, 0.9)', 'rgba(1, 11, 6, 0.96)', 'rgba(0, 4, 2, 0.99)'],
+    rim: 'rgba(96, 255, 158, 0.3)',
+    graticule: 'rgba(96, 240, 150, 0.12)',
+    graticuleRim: 'rgba(96, 240, 150, 0.07)',
+    land: ['rgba(54, 140, 86, 0.32)', 'rgba(82, 225, 140, 0.48)', 'rgba(158, 255, 194, 0.78)'],
+    labelBg: 'rgba(1, 10, 5, 0.9)',
+    labelText: 'rgba(190, 255, 214, 0.96)',
+    markerStroke: 'rgba(1, 9, 4, 0.95)',
+    font: '10px "JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+    status: { online: '#7cffb2', warning: '#ffd166', offline: '#ff6b7d', pending: '#5eead4' },
+  },
+  gilded: {
+    starsRgb: '232, 200, 146',
+    starAlpha: 0.45,
+    ocean: ['rgba(34, 27, 18, 0.9)', 'rgba(18, 14, 9, 0.96)', 'rgba(7, 6, 4, 0.99)'],
+    rim: 'rgba(230, 196, 138, 0.32)',
+    graticule: 'rgba(230, 196, 138, 0.12)',
+    graticuleRim: 'rgba(230, 196, 138, 0.07)',
+    land: ['rgba(142, 112, 66, 0.34)', 'rgba(208, 173, 112, 0.5)', 'rgba(246, 221, 176, 0.78)'],
+    labelBg: 'rgba(13, 11, 8, 0.9)',
+    labelText: 'rgba(246, 225, 188, 0.96)',
+    markerStroke: 'rgba(10, 8, 6, 0.95)',
+    font: '10px "Cormorant Garamond", "Iowan Old Style", Georgia, serif',
+    status: { online: '#d6b878', warning: '#e0a85a', offline: '#d97f86', pending: '#b7a6d9' },
+  },
+};
+
 const DEG = Math.PI / 180;
 
 function decodeLand() {
@@ -106,6 +165,8 @@ export class Globe {
     this.ctx = canvas.getContext('2d');
     this.accent = options.accent || '#34e6c6';
     this.accentRgb = hexToRgb(this.accent);
+    this.style = options.style || 'cosmos';
+    this.palette = GLOBE_PALETTES[this.style] || GLOBE_PALETTES.cosmos;
     this.hub = options.hub || { lat: 31.23, lon: 121.47, name: '探针中枢' };
     this.onSelect = options.onSelect || (() => {});
     this.onCoordChange = options.onCoordChange || (() => {});
@@ -117,9 +178,9 @@ export class Globe {
     this.arcs = [];
     this.land = decodeLand();
     this.landBuckets = [
-      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.25, fill: 'rgba(100, 140, 182, 0.3)' },
-      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.45, fill: 'rgba(128, 170, 212, 0.48)' },
-      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.9, fill: 'rgba(172, 214, 242, 0.72)' },
+      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.25, fill: this.palette.land[0] },
+      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.45, fill: this.palette.land[1] },
+      { coords: new Float32Array(this.land.length * 2), count: 0, size: 1.9, fill: this.palette.land[2] },
     ];
     this.stars = Array.from({ length: 90 }, (_, index) => {
       const angle = (index * 2.399963) % (Math.PI * 2);
@@ -209,6 +270,20 @@ export class Globe {
   setAccent(hex) {
     this.accent = hex || '#34e6c6';
     this.accentRgb = hexToRgb(this.accent);
+    if (this.width && this.height) this.render(performance.now(), 0);
+  }
+
+  setTheme(style) {
+    this.style = GLOBE_PALETTES[style] ? style : 'cosmos';
+    this.palette = GLOBE_PALETTES[this.style];
+    this.landBuckets.forEach((bucket, index) => {
+      bucket.fill = this.palette.land[index];
+    });
+    if (this.width && this.height) this.render(performance.now(), 0);
+  }
+
+  statusColor(status) {
+    return this.palette.status?.[status] || STATUS_COLOR[status] || STATUS_COLOR.online;
   }
 
   setPaused(value) {
@@ -306,8 +381,8 @@ export class Globe {
 
     // distant stars
     for (const star of this.stars) {
-      const alpha = star.alpha * (0.65 + 0.35 * Math.sin(now / 1400 + star.ox * 9));
-      ctx.fillStyle = `rgba(196, 214, 240, ${alpha.toFixed(3)})`;
+      const alpha = star.alpha * this.palette.starAlpha * (0.65 + 0.35 * Math.sin(now / 1400 + star.ox * 9));
+      ctx.fillStyle = `rgba(${this.palette.starsRgb}, ${alpha.toFixed(3)})`;
       ctx.fillRect(cx + star.ox * r * 1.55, cy + star.oy * r * 1.55, star.size, star.size);
     }
 
@@ -323,9 +398,9 @@ export class Globe {
 
     // ocean
     const ocean = ctx.createRadialGradient(cx - r * 0.34, cy - r * 0.4, r * 0.08, cx, cy, r);
-    ocean.addColorStop(0, 'rgba(30, 50, 76, 0.55)');
-    ocean.addColorStop(0.55, 'rgba(12, 22, 38, 0.72)');
-    ocean.addColorStop(1, 'rgba(4, 8, 16, 0.92)');
+    ocean.addColorStop(0, this.palette.ocean[0]);
+    ocean.addColorStop(0.55, this.palette.ocean[1]);
+    ocean.addColorStop(1, this.palette.ocean[2]);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = ocean;
@@ -333,7 +408,7 @@ export class Globe {
 
     // rim
     ctx.save();
-    ctx.strokeStyle = 'rgba(120, 190, 210, 0.22)';
+    ctx.strokeStyle = this.palette.rim;
     ctx.lineWidth = 1;
     ctx.shadowColor = `rgba(${this.accentRgb}, 0.35)`;
     ctx.shadowBlur = 18;
@@ -385,7 +460,7 @@ export class Globe {
 
   drawGraticule(geo) {
     const ctx = this.ctx;
-    ctx.strokeStyle = 'rgba(120, 158, 198, 0.09)';
+    ctx.strokeStyle = this.palette.graticule;
     ctx.lineWidth = 1;
     for (let lon = -180; lon < 180; lon += 30) {
       ctx.beginPath();
@@ -423,7 +498,7 @@ export class Globe {
       }
       ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(120, 158, 198, 0.05)';
+    ctx.strokeStyle = this.palette.graticuleRim;
     ctx.beginPath();
     ctx.arc(geo.cx, geo.cy, geo.r * 0.995, 0, Math.PI * 2);
     ctx.stroke();
@@ -432,7 +507,7 @@ export class Globe {
   drawArcs(geo, now, dt) {
     const ctx = this.ctx;
     for (const arc of this.arcs) {
-      const color = STATUS_COLOR[arc.status] || STATUS_COLOR.online;
+      const color = this.statusColor(arc.status);
       const points = arc.points;
       ctx.save();
       ctx.lineWidth = 1;
@@ -495,7 +570,7 @@ export class Globe {
       const visible = point.z > 0.02;
       this.markers.push({ id: node.id, x: point.x, y: point.y, z: point.z, visible, node });
       if (!visible) continue;
-      const color = STATUS_COLOR[node.status] || STATUS_COLOR.online;
+      const color = this.statusColor(node.status);
       const depth = Math.min(1, Math.max(0.15, point.z));
       const isHovered = this.hovered === node.id;
       const isSelected = this.selectedId === node.id;
@@ -527,7 +602,7 @@ export class Globe {
       ctx.beginPath();
       ctx.arc(point.x, point.y, isHovered || isSelected ? 4.4 : 3.2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(4, 10, 18, 0.9)';
+      ctx.strokeStyle = this.palette.markerStroke;
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.restore();
@@ -546,7 +621,7 @@ export class Globe {
 
     labels.sort((a, b) => b.priority - a.priority);
     const boxes = [];
-    ctx.font = '10px "Inter", "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.font = this.palette.font;
     ctx.textBaseline = 'middle';
     for (const label of labels) {
       const text = label.node.name;
@@ -566,7 +641,7 @@ export class Globe {
       ctx.save();
       ctx.globalAlpha = 0.7 + 0.3 * label.z;
       roundRect(ctx, x, y, boxWidth, boxHeight, 6);
-      ctx.fillStyle = 'rgba(5, 10, 18, 0.82)';
+      ctx.fillStyle = this.palette.labelBg;
       ctx.fill();
       ctx.strokeStyle = `${label.color}55`;
       ctx.lineWidth = 1;
@@ -575,7 +650,7 @@ export class Globe {
       ctx.beginPath();
       ctx.arc(x + 9, y + boxHeight / 2, 2.6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(226, 236, 248, 0.94)';
+      ctx.fillStyle = this.palette.labelText;
       ctx.fillText(text, x + 16, y + boxHeight / 2 + 0.5);
       ctx.restore();
     }

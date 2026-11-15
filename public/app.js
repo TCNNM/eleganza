@@ -946,6 +946,7 @@ function setupGlobe() {
   if (!canvas) return;
   globe = new Globe(canvas, {
     hub: { lat: 31.23, lon: 121.47, name: '探针中枢' },
+    style: state.prefs.style,
     accent: accentColor(state.prefs),
     onSelect: (id) => openDrawer(id),
     onCoordChange: (lat, lon) => {
@@ -1056,6 +1057,7 @@ function applyAppearance(preferences, { persist = true, forceMotion = false } = 
   if (persist) savePreferences(next);
   syncAppearanceControls();
   if (globe) {
+    globe.setTheme(next.style);
     globe.setAccent(accentColor(next));
     if (forceMotion || previousMotion !== next.motion) setGlobeMotion(next.motion);
   }
