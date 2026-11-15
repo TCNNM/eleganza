@@ -56,15 +56,32 @@ fetch_file() {
   local url="$1"
   local output="$2"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --max-time 30 "$url" -o "$output"
+    curl -fsSL --retry 3 --retry-delay 1 --max-time 30 "$url" -o "$output"
     return
   fi
   if command -v wget >/dev/null 2>&1; then
-    wget -qO "$output" --timeout=30 "$url"
+    wget -qO "$output" --timeout=30 --tries=3 "$url"
     return
   fi
   echo "需要 curl 或 wget 才能下载 Agent 文件。" >&2
   return 1
+}
+
+normalize_lf() {
+  local file="$1"
+  if LC_ALL=C grep -q $'\r' "$file" 2>/dev/null; then
+    tr -d '\r' < "$file" > "$file.lf"
+    mv "$file.lf" "$file"
+  fi
+}
+
+invalid_file() {
+  local file="$1"
+  echo "下载的 $(basename "$file") 内容不合法。" >&2
+  echo "  大小: $(wc -c < "$file" 2>/dev/null || echo 0) 字节" >&2
+  echo "  首行: $(sed -n '1p' "$file" 2>/dev/null | cut -c1-120)" >&2
+  echo "可能是网络代理/镜像返回了 HTML 页面。请检查服务器访问 GitHub 的网络后重试。" >&2
+  exit 1
 }
 
 SCRIPT_DIR=""
@@ -88,10 +105,17 @@ if [ ! -s "$SRC_DIR/eleganza-agent.sh" ] || [ ! -s "$SRC_DIR/eleganza-agent.serv
   echo "Agent 文件下载失败，请检查网络或 ELEGANZA_AGENT_BASE。" >&2
   exit 1
 fi
-SHEBANG="$(sed -n '1p' "$SRC_DIR/eleganza-agent.sh")"
+
+normalize_lf "$SRC_DIR/eleganza-agent.sh"
+normalize_lf "$SRC_DIR/eleganza-agent.service"
+
+SHEBANG="$(sed -n '1p' "$SRC_DIR/eleganza-agent.sh" | tr -d '\r')"
+SHEBANG="${SHEBANG#$'\xEF\xBB\xBF'}"
 if [ "$SHEBANG" != "#!/usr/bin/env bash" ] && [ "$SHEBANG" != "#!/bin/bash" ]; then
-  echo "下载的 eleganza-agent.sh 内容不合法。" >&2
-  exit 1
+  invalid_file "$SRC_DIR/eleganza-agent.sh"
+fi
+if ! grep -q '^\[Unit\]' "$SRC_DIR/eleganza-agent.service"; then
+  invalid_file "$SRC_DIR/eleganza-agent.service"
 fi
 
 mkdir -p /usr/local/bin

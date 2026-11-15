@@ -584,6 +584,9 @@ npm run build:globe
 **Agent 一直显示“待探测”**
 先确认 `config.json` 里的 `agentKey` 与 `/etc/eleganza-agent.env` 的 `ELEGANZA_TOKEN` 完全一致，再 `journalctl -u eleganza-agent -f` 看是否 401。Agent 第一次上报前就是待探测状态。
 
+**安装 Agent 提示“下载的 eleganza-agent.sh 内容不合法”**
+旧版仓库文件带有 Windows CRLF 换行，第一行变成 `#!/usr/bin/env bash\r`，安装器的校验会误判。现在仓库已改为 LF，安装器也会自动去除 CRLF 并打印下载文件的首行/大小。请重新执行最新安装命令；如果仍失败，通常是服务器网络代理把 GitHub 原始文件替换成了 HTML 页面，检查 `curl` 访问 `raw.githubusercontent.com` 的结果。
+
 **节点在线但 30 天可用率是 0**
 该节点刚加入，还没有跨小时的桶；等一小时或看 1h 曲线。演示模式会预填 30 天数据。
 
