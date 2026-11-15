@@ -41,7 +41,7 @@ if [ -z "$PANEL_URL" ] || [ -z "$TOKEN" ]; then
   exit 2
 fi
 case "$TOKEN" in
-  '<'*'>')
+  '<'*'>'|请替换*|CHANGE_ME|change_me|REPLACE_ME|replace_me)
     echo "检测到占位符 $TOKEN，请替换成真实的 agentKey。" >&2
     exit 2
     ;;

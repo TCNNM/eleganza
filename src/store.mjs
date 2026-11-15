@@ -289,19 +289,21 @@ export class Store {
     }) : [];
     const primary = disks.find((disk) => disk.mount === '/') || disks[0] || null;
 
+    const hostname = String(report.hostname || previous?.hostname || '').slice(0, 80);
+    const sameAgentHost = Boolean(previous?.hostname && hostname && previous.hostname === hostname);
     const location = {
-      city: String(report.location?.city || previous?.location?.city || '').slice(0, 80),
-      region: String(report.location?.region || previous?.location?.region || '').slice(0, 80),
-      country: String(report.location?.country || previous?.location?.country || '').slice(0, 8),
-      lat: Number.isFinite(Number(report.location?.lat)) ? Number(report.location.lat) : previous?.location?.lat ?? null,
-      lon: Number.isFinite(Number(report.location?.lon)) ? Number(report.location.lon) : previous?.location?.lon ?? null,
+      city: String(report.location?.city || (sameAgentHost ? previous?.location?.city : '') || '').slice(0, 80),
+      region: String(report.location?.region || (sameAgentHost ? previous?.location?.region : '') || '').slice(0, 80),
+      country: String(report.location?.country || (sameAgentHost ? previous?.location?.country : '') || '').slice(0, 8),
+      lat: Number.isFinite(Number(report.location?.lat)) ? Number(report.location.lat) : (sameAgentHost ? previous?.location?.lat ?? null : null),
+      lon: Number.isFinite(Number(report.location?.lon)) ? Number(report.location.lon) : (sameAgentHost ? previous?.location?.lon ?? null : null),
     };
     const agent = {
-      hostname: String(report.hostname || previous?.hostname || '').slice(0, 80),
+      hostname,
       platform: String(report.platform || previous?.platform || '').slice(0, 120),
       kernel: String(report.kernel || previous?.kernel || '').slice(0, 160),
       version: String(report.agentVersion || previous?.version || '').slice(0, 40),
-      publicIp: String(report.publicIp || previous?.publicIp || '').slice(0, 64),
+      publicIp: String(report.publicIp || (sameAgentHost ? previous?.publicIp : '') || '').slice(0, 64),
       location,
       cores: Number(report.cpu?.cores) || previous?.cores || null,
       cpuModel: String(report.cpu?.model || previous?.cpuModel || '').slice(0, 120),

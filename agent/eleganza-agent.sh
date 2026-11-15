@@ -315,7 +315,7 @@ if [ -z "$ELEGANZA_URL" ] || [ -z "$ELEGANZA_TOKEN" ]; then
 fi
 
 case "$ELEGANZA_TOKEN" in
-  '<'*'>')
+  '<'*'>'|请替换*|CHANGE_ME|change_me|REPLACE_ME|replace_me)
     echo "ELEGANZA_TOKEN 仍是占位符：$ELEGANZA_TOKEN" >&2
     echo "请填写面板中该服务器的真实 agentKey。" >&2
     exit 2

@@ -607,7 +607,7 @@ function renderIncidents() {
 function renderInfoPanel(overview) {
   if (!els.infoNodes) return;
   const user = state.auth?.user;
-  els.infoNodes.textContent = `${overview.summary.total} 个`;
+  els.infoNodes.textContent = `${overview.summary.total} 台`;
   els.infoChecks.textContent = formatNumber(overview.summary.checks30d);
   els.infoHistory.textContent = `${overview.site.historyDays || 35} 天`;
   els.infoUser.textContent = user
