@@ -13,6 +13,27 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
 安装到 `/opt/eleganza`，完成后按终端打印的初始化令牌打开面板并创建管理员。  
 探针 / Agent 安装见 [Agent](#agent) 章节。
 
+### 快速卸载面板
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+  | sudo bash
+```
+
+默认会停止并删除 `eleganza.service` 和 `/opt/eleganza`，删除前把 `config.json` 与 `data/` 备份到 `/root/eleganza-backup-*.tar.gz`。
+
+```bash
+# 无交互卸载
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+  | sudo env ELEGANZA_UNINSTALL_YES=1 bash
+
+# 彻底删除，不备份配置和历史数据
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+  | sudo env ELEGANZA_UNINSTALL_YES=1 ELEGANZA_UNINSTALL_PURGE=1 bash
+```
+
+> 该脚本只针对一键 systemd 安装。Docker 安装请进入项目目录执行 `docker compose down`；需要删除数据时再删除 `data/`。
+
 > 一个类似 [Meridian](https://github.com/Dokoyamo-Lisa/Meridian) 状态页面的轻量探针面板：
 > 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、账号系统，以及四套完整的视觉风格。
 >
@@ -484,8 +505,8 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 
 安全建议：
 
-- 不要把面板端口直接暴露公网；先在 TLS 后面，再考虑 `accounts.required: true`。
-- 首次初始化完成前不要公网暴露；初始化令牌只在终端打印。
+- 一键安装会选择公网 IP 或域名，并在 `0.0.0.0:8787` 上监听；请立即用初始化令牌创建管理员，并在不需要时用安全组/防火墙限制 8787，优先通过 443 反向代理。
+- 首次初始化完成前不要把面板长期暴露在公网；初始化令牌只在终端打印。
 - 管理员密码用 16 位以上随机串，不要与任何外部服务复用。
 - 每个成员使用独立账号，不共用管理员；离职后禁用或删除账号。
 - 每个 Agent 使用独立 `agentKey`；泄露后只改该节点并 reload。
@@ -527,7 +548,7 @@ eleganza/
 │   └── globe-land.js       # 由 Natural Earth 110m 生成的点阵（构建产物）
 ├── assets/land-110m.json   # Natural Earth 110m 陆地拓扑（点阵数据源）
 ├── agent/                  # Bash Agent + systemd + 安装脚本
-├── deploy/                 # 一键安装、systemd、Nginx / Caddy 示例
+├── deploy/                 # 一键安装/卸载、systemd、Nginx / Caddy 示例
 ├── test/                   # node:test 单元与集成测试
 ├── tools/
 │   ├── build-globe.mjs     # TopoJSON → 点阵位图
