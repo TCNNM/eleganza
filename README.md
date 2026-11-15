@@ -62,6 +62,7 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 
 - **实时地球**：纯 Canvas 绘制的 3D 点阵地球，节点脉冲、中枢弧线、鼠标拖动旋转、点击节点打开详情。
 - **两种探针**：服务端主动探测 HTTP / HTTPS / TCP，支持状态码白名单、关键字、TLS 证书天数；资源类指标由 Agent 反向推送。
+- **探针指令**：首页「探针指令」按钮根据 `site.publicUrl` 生成当前站点的 Agent 快捷安装命令，支持一键复制。
 - **30 天可用率**：按小时聚合的长期桶，按天着色；另有 1h / 24h / 7d / 30d 延迟曲线。
 - **详情抽屉**：延迟趋势、区间可用率、TLS 证书、系统负载、服务状态、历史事件、节点元信息。
 - **事件时间线**：连续失败达到阈值后自动开事件，恢复后自动闭环，并记录持续时长。
@@ -74,6 +75,8 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 ![节点详情](docs/drawer.png)
 
 ![外观设置](docs/appearance.png)
+
+![探针指令](docs/probe-command.png)
 
 ![用户管理](docs/accounts.png)
 
@@ -164,6 +167,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
 - 下载源码到 `/opt/eleganza`
 - 创建系统用户 `eleganza`
 - 生成 `config.json`、`data/` 和 systemd 服务
+- 把选择的面板地址写入 `site.publicUrl`，供首页「探针指令」使用
 - 按选择监听 `0.0.0.0:8787`，启动面板并做健康检查
 - 打印访问地址和首次初始化令牌
 
@@ -248,6 +252,7 @@ cd /opt/eleganza && sudo -u eleganza node tools/create-admin.mjs admin
 | `tagline` | 让每一条线路，都清晰可见。 | 首页主文案 |
 | `description` | 一段说明 | 首页描述 |
 | `footer` | 自建探针面板 | 页脚文字 |
+| `publicUrl` | 空 | 面板对外地址，例如 `https://status.example.com`；用于生成“探针指令”，为空时自动使用当前访问地址 |
 | `hub` | 探针中枢（上海） | 地球上的“探针中枢”坐标：`{ name, lat, lon }` |
 | `refreshSeconds` | `10` | 节点默认探测间隔（每个节点可单独覆盖） |
 | `showAddress` | `false` | 是否公开真实地址；默认打码 |

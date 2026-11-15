@@ -34,6 +34,7 @@ const DEFAULT_SITE = {
   description: '从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。',
   footer: 'Eleganza · 自建探针面板',
   locale: 'zh-CN',
+  publicUrl: '',
   hub: { name: '探针中枢', lat: 31.2304, lon: 121.4737 },
   refreshSeconds: 10,
   public: true,
@@ -136,6 +137,17 @@ export function loadConfig(file, { demo = false } = {}) {
   site.historyDays = clamp(Number(site.historyDays || 35), 30, 90);
   site.refreshSeconds = clamp(Number(site.refreshSeconds || 10), 5, 120);
   site.public = site.public !== false;
+  const publicUrl = String(site.publicUrl || '').trim();
+  if (publicUrl) {
+    try {
+      const parsed = new URL(publicUrl);
+      site.publicUrl = parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.origin : '';
+    } catch {
+      site.publicUrl = '';
+    }
+  } else {
+    site.publicUrl = '';
+  }
 
   const thresholds = { ...DEFAULT_THRESHOLDS, ...(raw.thresholds || {}) };
   const targets = (raw.targets || []).map((target, index) => normalizeTarget(target, index, site, thresholds, isDemo));

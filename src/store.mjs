@@ -665,6 +665,7 @@ export class Store {
         description: this.site.description,
         footer: this.site.footer,
         locale: this.site.locale,
+        publicUrl: this.site.publicUrl,
         hub: this.site.hub,
         refreshSeconds: this.site.refreshSeconds,
         historyDays: this.site.historyDays,

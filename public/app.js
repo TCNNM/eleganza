@@ -53,6 +53,7 @@ const state = {
 const els = {
   clock: $('#clock'),
   refresh: $('#refresh-button'),
+  probeCommandButton: $('#probe-command-button'),
   appearanceButton: $('#appearance-button'),
   appearancePopover: $('#appearance-popover'),
   accountButton: $('#account-button'),
@@ -141,6 +142,27 @@ function escapeHtml(value) {
 function formatNumber(value) {
   if (value == null || !Number.isFinite(Number(value))) return '—';
   return Number(value).toLocaleString('en-US');
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // Some HTTP origins expose the API but reject the write; use the fallback.
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-9999px';
+  document.body.append(area);
+  area.select();
+  const copied = document.execCommand('copy');
+  area.remove();
+  if (!copied) throw new Error('copy failed');
 }
 
 function formatLatency(value) {
@@ -1272,6 +1294,63 @@ function closeDialog() {
   if (els.authModal.hidden) document.body.classList.remove('modal-open');
 }
 
+function panelBaseUrl() {
+  const configured = state.overview?.site?.publicUrl;
+  try {
+    const parsed = new URL(configured || location.origin);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.origin;
+  } catch {
+    // Fall through to the address currently serving the panel.
+  }
+  return location.origin;
+}
+
+function openProbeCommandDialog() {
+  const base = panelBaseUrl();
+  const fromConfig = Boolean(state.overview?.site?.publicUrl);
+  const fallbackNote = fromConfig
+    ? ''
+    : '<p class="probe-footnote">当前使用浏览器访问地址。如果这是 127.0.0.1 或 SSH 隧道地址，请在 config.json 中把 <code>site.publicUrl</code> 设置为对外域名。</p>';
+  const command = `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \\
+  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \\
+    bash -s -- '${base}' '<AGENT_TOKEN>'`;
+
+  openDialog({
+    kicker: 'AGENT INSTALL',
+    title: '探针快捷安装',
+    subtitle: `当前站点：${base}`,
+    body: `
+      <div class="dialog-section">
+        <p class="dialog-lead">在目标服务器的 SSH 中执行下面命令。脚本会自动下载 Agent、写入 systemd 服务并启动。</p>
+        <div class="info-cell probe-site-cell">
+          <span>当前绑定站点${fromConfig ? ' · site.publicUrl' : ' · 当前访问地址'}</span>
+          <strong>${escapeHtml(base)}</strong>
+        </div>
+        <div class="code-block">
+          <div class="code-head">
+            <span>AGENT INSTALL · SYSTEMD</span>
+            <button class="copy-button" type="button" data-copy-target="probe-command-code" data-label="复制命令">复制命令</button>
+          </div>
+          <pre id="probe-command-code" tabindex="0">${escapeHtml(command)}</pre>
+        </div>
+      </div>
+      <div class="dialog-section">
+        <h3>执行前</h3>
+        <ol class="probe-steps">
+          <li>先在面板的 <code>config.json</code> 中为这台服务器添加 <code>type: "agent"</code> 节点。</li>
+          <li>把命令中的 <code>&lt;AGENT_TOKEN&gt;</code> 替换成该节点的 <code>agentKey</code>。</li>
+          <li>目标服务器需要能访问 <code>${escapeHtml(base)}</code>，并装有 curl 或 wget。</li>
+        </ol>
+        <p class="probe-footnote">每台服务器使用独立的 agentKey。安装完成后用 <code>journalctl -u eleganza-agent -f</code> 查看日志。</p>
+        ${fallbackNote}
+        <a class="panel-link" href="https://github.com/TCNNM/eleganza#agent" target="_blank" rel="noreferrer">
+          查看完整 Agent 安装说明
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4h9v9M16 4 6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>`,
+  });
+}
+
 function dialogError(container, message) {
   let box = container.querySelector('.form-error');
   if (!box) {
@@ -1506,6 +1585,7 @@ function init() {
   setupGlobe();
 
   els.refresh.addEventListener('click', () => refreshOverview());
+  els.probeCommandButton?.addEventListener('click', openProbeCommandDialog);
 
   els.appearanceButton.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1630,6 +1710,29 @@ function init() {
   document.addEventListener('click', (event) => {
     if (!event.target.closest('.popover') && !event.target.closest('#appearance-button') && !event.target.closest('#account-button')) {
       closePopovers();
+    }
+  });
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-copy-target]');
+    if (!button) return;
+    const target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    const label = button.dataset.label || button.textContent;
+    try {
+      await copyText(target.textContent);
+      button.textContent = '已复制';
+      button.classList.add('is-done');
+      setTimeout(() => {
+        button.textContent = label;
+        button.classList.remove('is-done');
+      }, 1600);
+    } catch {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      toast('复制失败，已选中命令，请按 Ctrl+C');
     }
   });
   document.addEventListener('visibilitychange', () => {

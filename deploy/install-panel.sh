@@ -226,6 +226,16 @@ if [ ! -f "$INSTALL_DIR/config.json" ]; then
   echo "==> 已生成 $INSTALL_DIR/config.json（示例配置）"
 fi
 
+# 记录安装时选择的站点地址，探针指令弹窗会直接使用它
+"$NODE_BIN" - "$INSTALL_DIR/config.json" "$PUBLIC_URL" <<'NODE'
+const fs = require('node:fs');
+const [file, publicUrl] = process.argv.slice(2);
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+config.site = config.site && typeof config.site === 'object' ? config.site : {};
+config.site.publicUrl = publicUrl;
+fs.writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+NODE
+
 mkdir -p "$INSTALL_DIR/data"
 if ! id -u eleganza >/dev/null 2>&1; then
   useradd --system --home "$INSTALL_DIR" --shell /usr/sbin/nologin eleganza

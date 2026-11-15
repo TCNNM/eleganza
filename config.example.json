@@ -7,6 +7,7 @@
     "description": "从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。",
     "footer": "Eleganza · 自建探针面板",
     "locale": "zh-CN",
+    "publicUrl": "",
     "hub": {
       "name": "上海",
       "lat": 31.2304,
