@@ -445,16 +445,21 @@ Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` �
 先在面板 `config.json` 里给节点填好 `agentKey`，然后在**目标服务器**的 SSH 里执行：
 
 ```bash
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
-  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
-    bash -s -- https://status.example.com <AGENT_TOKEN>
+  | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+    bash -s -- https://status.example.com
 ```
 
 不需要检查服务时：
 
 ```bash
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
-  | sudo bash -s -- https://status.example.com <AGENT_TOKEN>
+  | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
+    bash -s -- https://status.example.com
 ```
 
 脚本会自动下载 Agent 和 systemd 单元，写入 `/etc/eleganza-agent.env`，然后启动 `eleganza-agent`。
@@ -462,20 +467,25 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
 如果更谨慎，先下载再检查，最后执行：
 
 ```bash
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
   -o /tmp/install-eleganza-agent.sh
 less /tmp/install-eleganza-agent.sh
-sudo ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
-  bash /tmp/install-eleganza-agent.sh https://status.example.com <AGENT_TOKEN>
+
+sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+  bash /tmp/install-eleganza-agent.sh https://status.example.com
 ```
 
 ### 本地仓库安装
 
 ```bash
 # 在面板配置里给节点填好 agentKey，然后在目标机上：
-sudo ELEGANZA_SERVICES="nginx xray" \
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
+sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" \
      ELEGANZA_MOUNTS="/ /var" \
-     ./agent/install-agent.sh https://status.example.com <AGENT_TOKEN>
+     ./agent/install-agent.sh https://status.example.com
 
 # 看日志
 journalctl -u eleganza-agent -f
@@ -484,14 +494,17 @@ journalctl -u eleganza-agent -f
 也可以手动运行：
 
 ```bash
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
 ELEGANZA_URL=https://status.example.com \
-ELEGANZA_TOKEN=<AGENT_TOKEN> \
+ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
 ELEGANZA_SERVICES="nginx xray" \
 ELEGANZA_MOUNTS="/" \
 bash agent/eleganza-agent.sh --once
 
-# 只打印将上报的 JSON（排查用）
-ELEGANZA_URL=https://... ELEGANZA_TOKEN=... bash agent/eleganza-agent.sh --print
+# 只打印将上报的 JSON（排查用，同样先 read 输入 Token）
+ELEGANZA_URL=https://status.example.com ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
+  bash agent/eleganza-agent.sh --print
 ```
 
 上报内容：主机名、系统、内核、运行时长、CPU 使用率 / 核心数 / 型号、内存、挂载点使用率、网卡累计流量、负载、systemd / OpenRC 服务状态。间隔由 `ELEGANZA_INTERVAL` 控制，最小 5 秒。

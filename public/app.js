@@ -1326,9 +1326,10 @@ function openProbeCommandDialog() {
   const tlsNote = internalTls
     ? '<p class="probe-footnote">当前是 IP + Caddy 内部证书，命令已自动加入 <code>ELEGANZA_INSECURE=1</code>；浏览器首次访问也会提示证书不受信任。</p>'
     : '';
-  const command = `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
-  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
-    bash -s -- '${base}' '<AGENT_TOKEN>'`;
+  const command = `read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
+  | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
+    bash -s -- '${base}'`;
 
   openDialog({
     kicker: 'AGENT INSTALL',
@@ -1353,7 +1354,7 @@ function openProbeCommandDialog() {
         <h3>执行前</h3>
         <ol class="probe-steps">
           <li>先在面板的 <code>config.json</code> 中为这台服务器添加 <code>type: "agent"</code> 节点。</li>
-          <li>把命令中的 <code>&lt;AGENT_TOKEN&gt;</code> 替换成该节点的 <code>agentKey</code>。</li>
+          <li>执行命令后按提示输入该节点的 <code>agentKey</code>；Token 不会写进 shell 历史。</li>
           <li>目标服务器需要能访问 <code>${escapeHtml(base)}</code>，并装有 curl 或 wget。</li>
         </ol>
         <p class="probe-footnote">每台服务器使用独立的 agentKey。安装完成后用 <code>journalctl -u eleganza-agent -f</code> 查看日志。</p>

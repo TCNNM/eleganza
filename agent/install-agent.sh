@@ -2,30 +2,37 @@
 # Eleganza agent 一键安装（systemd）
 #
 # 本地安装（脚本同目录已有 eleganza-agent.sh / .service）：
-#   sudo ELEGANZA_SERVICES="nginx xray" ./install-agent.sh https://panel.example.com <TOKEN>
+#   read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+#   sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" \
+#     ./install-agent.sh https://panel.example.com
 #
 # GitHub 一行安装（脚本会自动下载其余文件）：
+#   read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
 #   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
-#     | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
-#       bash -s -- https://panel.example.com <TOKEN>
+#     | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" \
+#       ELEGANZA_MOUNTS="/ /var" bash -s -- https://panel.example.com
 #
-# 可选环境变量：ELEGANZA_SERVICES / ELEGANZA_MOUNTS / ELEGANZA_INTERVAL /
-#               ELEGANZA_NODE_NAME / ELEGANZA_INSECURE / ELEGANZA_AGENT_BASE / FORCE
+# 也可以把 Token 作为第二个参数传入，但会留在 shell 历史里，不推荐。
+# 可选环境变量：ELEGANZA_TOKEN / ELEGANZA_SERVICES / ELEGANZA_MOUNTS /
+#               ELEGANZA_INTERVAL / ELEGANZA_NODE_NAME / ELEGANZA_INSECURE /
+#               ELEGANZA_AGENT_BASE / FORCE
 set -euo pipefail
 
-PANEL_URL="${1:-}"
-TOKEN="${2:-}"
+PANEL_URL="${1:-${ELEGANZA_PANEL_URL:-}}"
+TOKEN="${2:-${ELEGANZA_TOKEN:-}}"
 RAW_BASE="${ELEGANZA_AGENT_BASE:-https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent}"
 
 usage() {
   cat <<'USAGE'
 用法:
-  sudo ./install-agent.sh https://panel.example.com <AGENT_TOKEN>
+  read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+  sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ./install-agent.sh https://panel.example.com
 
 GitHub 一行安装:
+  read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
-    | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
-      bash -s -- https://panel.example.com <AGENT_TOKEN>
+    | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" \
+      ELEGANZA_MOUNTS="/ /var" bash -s -- https://panel.example.com
 USAGE
 }
 
@@ -33,6 +40,12 @@ if [ -z "$PANEL_URL" ] || [ -z "$TOKEN" ]; then
   usage >&2
   exit 2
 fi
+case "$TOKEN" in
+  '<'*'>')
+    echo "检测到占位符 $TOKEN，请替换成真实的 agentKey。" >&2
+    exit 2
+    ;;
+esac
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   echo "请用 root 运行（sudo）。" >&2
