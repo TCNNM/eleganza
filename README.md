@@ -107,7 +107,42 @@ ELEGANZA_HOST=0.0.0.0 ELEGANZA_PORT=8080 node server.mjs
 node server.mjs --config /etc/eleganza/config.json --port 8787
 ```
 
-### 3. Docker
+### 3. Linux 一行安装（systemd）
+
+要求：Linux + systemd + Node.js >= 20.11。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+  | sudo bash
+```
+
+脚本会：
+
+- 下载源码到 `/opt/eleganza`
+- 创建系统用户 `eleganza`
+- 生成 `config.json`、`data/` 和 systemd 服务
+- 启动面板并做健康检查
+- 打印首次初始化令牌
+
+安装完成后：
+
+```bash
+sudo nano /opt/eleganza/config.json   # 添加节点
+sudo systemctl restart eleganza
+sudo systemctl status eleganza --no-pager
+```
+
+自定义目录或端口：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+  | sudo env ELEGANZA_DIR=/opt/eleganza ELEGANZA_PORT=8787 bash
+```
+
+> 面板只监听 `127.0.0.1`。公网访问仍需 Caddy / Nginx 反向代理，并在 `config.json` 里设置 `site.trustProxy: true`。  
+> 如果不想用 root 管道脚本，可先下载检查：`curl -fsSL ... -o /tmp/install-panel.sh && less /tmp/install-panel.sh && sudo bash /tmp/install-panel.sh`。
+
+### 4. Docker
 
 ```bash
 mkdir -p data
@@ -127,7 +162,7 @@ docker compose logs eleganza | grep -A2 "初始化令牌"
 
 `docker-compose.yml` 只把端口绑在 `127.0.0.1`，并开启只读根文件系统、`no-new-privileges`、`cap_drop: ALL`。对外请用 Caddy / Nginx 提供 HTTPS。
 
-### 4. systemd
+### 5. 手动 systemd
 
 ```bash
 sudo useradd --system --home /opt/eleganza --shell /usr/sbin/nologin eleganza
@@ -458,7 +493,7 @@ eleganza/
 │   └── globe-land.js       # 由 Natural Earth 110m 生成的点阵（构建产物）
 ├── assets/land-110m.json   # Natural Earth 110m 陆地拓扑（点阵数据源）
 ├── agent/                  # Bash Agent + systemd + 安装脚本
-├── deploy/                 # systemd / Nginx / Caddy 示例
+├── deploy/                 # 一键安装、systemd、Nginx / Caddy 示例
 ├── test/                   # node:test 单元与集成测试
 ├── tools/
 │   ├── build-globe.mjs     # TopoJSON → 点阵位图
