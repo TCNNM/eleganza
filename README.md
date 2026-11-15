@@ -442,7 +442,21 @@ Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` �
 
 ### 一行安装（SSH 中直接粘贴）
 
-先在面板 `config.json` 里给节点填好 `agentKey`，然后在**目标服务器**的 SSH 里执行：
+先在面板 `config.json` 里添加 Agent 节点，并填入真实 `agentKey`：
+
+```json
+{
+  "id": "my-agent-node",
+  "name": "自建 VPS",
+  "type": "agent",
+  "agentKey": "用 openssl rand -hex 24 生成",
+  "services": ["nginx"]
+}
+```
+
+`agentKey` 不能是 `请替换为...`、`CHANGE_ME` 或 `<AGENT_TOKEN>`；面板启动时会直接拒绝这些占位符。生成后同时用于目标机的 `ELEGANZA_TOKEN`。
+
+然后在**目标服务器**的 SSH 里执行：
 
 ```bash
 read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
@@ -619,6 +633,9 @@ npm run build:globe
 
 **Agent 一直显示“待探测”**
 先确认 `config.json` 里的 `agentKey` 与 `/etc/eleganza-agent.env` 的 `ELEGANZA_TOKEN` 完全一致，再 `journalctl -u eleganza-agent -f` 看是否 401。Agent 第一次上报前就是待探测状态。
+
+**节点一直 pending，但 Agent 已安装**
+先看面板节点的 `agentKey` 是否仍是示例占位符（例如 `请替换为随机字符串-openssl-rand-hex-24`、`CHANGE_ME`）。面板启动时会拒绝这类值；请用 `openssl rand -hex 24` 生成，并把同一个值填到目标机 `/etc/eleganza-agent.env` 的 `ELEGANZA_TOKEN`。若日志里是 `401 Agent Token 无效`，就是两边不一致。
 
 **安装 Agent 提示“下载的 eleganza-agent.sh 内容不合法”**
 旧版仓库文件带有 Windows CRLF 换行，第一行变成 `#!/usr/bin/env bash\r`，安装器的校验会误判。现在仓库已改为 LF，安装器也会自动去除 CRLF 并打印下载文件的首行/大小。请重新执行最新安装命令；如果仍失败，通常是服务器网络代理把 GitHub 原始文件替换成了 HTML 页面，检查 `curl` 访问 `raw.githubusercontent.com` 的结果。

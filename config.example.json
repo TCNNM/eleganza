@@ -76,24 +76,6 @@
       "tags": [
         "示例"
       ]
-    },
-    {
-      "id": "my-agent-node",
-      "name": "自建 VPS",
-      "group": "示例",
-      "country": "SG",
-      "city": "新加坡",
-      "lat": 1.3521,
-      "lon": 103.8198,
-      "type": "agent",
-      "agentKey": "请替换为随机字符串-openssl-rand-hex-24",
-      "intervalSeconds": 30,
-      "services": [
-        "nginx"
-      ],
-      "tags": [
-        "Agent"
-      ]
     }
   ]
 }

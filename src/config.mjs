@@ -108,6 +108,12 @@ function normalizeTarget(raw, index, site, thresholds, demo) {
   if (type === 'agent' && !target.agentKey && !demo) {
     throw new Error(`targets[${index}] (${id}) 是 agent 类型，必须配置 agentKey（openssl rand -hex 24）`);
   }
+  if (type === 'agent' && !demo) {
+    const key = target.agentKey.trim();
+    if (/^(?:请替换.*|change[_-]?me|replace[_-]?me|your[-_ ]?(agent[-_ ]?)?token|agent[-_ ]?token|<.*>)$/i.test(key)) {
+      throw new Error(`targets[${index}] (${id}) 的 agentKey 仍是示例占位符；请用 openssl rand -hex 24 生成，并同步到 Agent 的 ELEGANZA_TOKEN`);
+    }
+  }
   if (type === 'agent' && !target.agentKey && demo) {
     target.agentKey = `demo-${sha256(id).slice(0, 24)}`;
   }
