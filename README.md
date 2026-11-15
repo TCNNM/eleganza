@@ -1,5 +1,17 @@
 # Eleganza · 全球节点探针面板
 
+## 一键安装面板
+
+要求：Linux + systemd + Node.js ≥ 20.11。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+  | sudo bash
+```
+
+安装到 `/opt/eleganza`，完成后按终端打印的初始化令牌打开面板并创建管理员。  
+探针 / Agent 安装见 [Agent](#agent) 章节。
+
 > 一个类似 [Meridian](https://github.com/Dokoyamo-Lisa/Meridian) 状态页面的轻量探针面板：
 > 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、账号系统，以及四套完整的视觉风格。
 >
