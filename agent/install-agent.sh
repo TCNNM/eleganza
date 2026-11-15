@@ -5,7 +5,7 @@
 #   sudo ELEGANZA_SERVICES="nginx xray" ./install-agent.sh https://panel.example.com <TOKEN>
 #
 # GitHub 一行安装（脚本会自动下载其余文件）：
-#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
 #     | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
 #       bash -s -- https://panel.example.com <TOKEN>
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 PANEL_URL="${1:-}"
 TOKEN="${2:-}"
-RAW_BASE="${ELEGANZA_AGENT_BASE:-https://raw.githubusercontent.com/TCNNM/eleganza/main/agent}"
+RAW_BASE="${ELEGANZA_AGENT_BASE:-https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent}"
 
 usage() {
   cat <<'USAGE'
@@ -23,7 +23,7 @@ usage() {
   sudo ./install-agent.sh https://panel.example.com <AGENT_TOKEN>
 
 GitHub 一行安装:
-  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
     | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
       bash -s -- https://panel.example.com <AGENT_TOKEN>
 USAGE

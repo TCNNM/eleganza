@@ -7,7 +7,7 @@
 #   删除前把 config.json 和 data/ 备份到 /root/eleganza-backup-<时间>.tar.gz
 #
 # 一行卸载：
-#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/uninstall-panel.sh \
 #     | sudo bash
 #
 # 无交互卸载：
@@ -25,7 +25,7 @@ PURGE="${ELEGANZA_UNINSTALL_PURGE:-0}"
 usage() {
   cat <<'USAGE'
 用法:
-  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/uninstall-panel.sh | sudo bash
 
 可选环境变量:
   ELEGANZA_DIR=/opt/eleganza       安装目录

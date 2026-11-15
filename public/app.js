@@ -1311,7 +1311,7 @@ function openProbeCommandDialog() {
   const fallbackNote = fromConfig
     ? ''
     : '<p class="probe-footnote">当前使用浏览器访问地址。如果这是 127.0.0.1 或 SSH 隧道地址，请在 config.json 中把 <code>site.publicUrl</code> 设置为对外域名。</p>';
-  const command = `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \\
+  const command = `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
   | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \\
     bash -s -- '${base}' '<AGENT_TOKEN>'`;
 

@@ -2,7 +2,7 @@
 # Eleganza 面板一键安装（Linux + systemd）
 #
 # 一行安装：
-#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
 #     | sudo bash
 #
 # 安装时会询问：
@@ -41,7 +41,7 @@ fi
 usage() {
   cat <<'USAGE'
 用法:
-  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh | sudo bash
 
 安装时会询问绑定公网 IP 还是域名。
 

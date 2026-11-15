@@ -5,7 +5,7 @@
 要求：Linux + systemd + Node.js ≥ 20.11。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
   | sudo bash
 ```
 
@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
 ### 快速卸载面板
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/uninstall-panel.sh \
   | sudo bash
 ```
 
@@ -24,11 +24,11 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstal
 
 ```bash
 # 无交互卸载
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/uninstall-panel.sh \
   | sudo env ELEGANZA_UNINSTALL_YES=1 bash
 
 # 彻底删除，不备份配置和历史数据
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/uninstall-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/uninstall-panel.sh \
   | sudo env ELEGANZA_UNINSTALL_YES=1 ELEGANZA_UNINSTALL_PURGE=1 bash
 ```
 
@@ -149,7 +149,7 @@ node server.mjs --config /etc/eleganza/config.json --port 8787
 要求：Linux + systemd + Node.js >= 20.11。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
   | sudo bash
 ```
 
@@ -175,11 +175,11 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
 
 ```bash
 # 绑定公网 IP
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
   | sudo env ELEGANZA_BIND=ip ELEGANZA_IP=1.2.3.4 bash
 
 # 绑定域名
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
   | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com bash
 ```
 
@@ -194,7 +194,7 @@ sudo systemctl status eleganza --no-pager
 自定义目录或端口：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
   | sudo env ELEGANZA_DIR=/opt/eleganza ELEGANZA_PORT=8787 bash
 ```
 
@@ -422,7 +422,7 @@ Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` �
 先在面板 `config.json` 里给节点填好 `agentKey`，然后在**目标服务器**的 SSH 里执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
   | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
     bash -s -- https://status.example.com <AGENT_TOKEN>
 ```
@@ -430,7 +430,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-a
 不需要检查服务时：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
   | sudo bash -s -- https://status.example.com <AGENT_TOKEN>
 ```
 
@@ -439,7 +439,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-a
 如果更谨慎，先下载再检查，最后执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
   -o /tmp/install-eleganza-agent.sh
 less /tmp/install-eleganza-agent.sh
 sudo ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
