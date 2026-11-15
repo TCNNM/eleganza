@@ -20,11 +20,28 @@ set -uo pipefail
 
 VERSION="1.2.0"
 ENV_FILE="${ELEGANZA_AGENT_ENV:-/etc/eleganza-agent.env}"
+
+load_env_file() {
+  local line key value
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    case "$line" in *=*) ;; *) continue ;; esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    case "$key" in ELEGANZA_*) ;; *) continue ;; esac
+    case "$value" in
+      \"*\") value="${value#\"}"; value="${value%\"}" ;;
+      \'*\') value="${value#\'}"; value="${value%\'}" ;;
+    esac
+    export "$key=$value"
+  done < "$ENV_FILE"
+}
+
 if [ -r "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
+  load_env_file
 fi
 
 MODE="loop"
@@ -296,6 +313,14 @@ if [ -z "$ELEGANZA_URL" ] || [ -z "$ELEGANZA_TOKEN" ]; then
   echo "用法: ELEGANZA_URL=https://panel.example.com ELEGANZA_TOKEN=xxx $0 --once" >&2
   exit 2
 fi
+
+case "$ELEGANZA_TOKEN" in
+  '<'*'>')
+    echo "ELEGANZA_TOKEN 仍是占位符：$ELEGANZA_TOKEN" >&2
+    echo "请填写面板中该服务器的真实 agentKey。" >&2
+    exit 2
+    ;;
+esac
 
 if [ "$MODE" != "loop" ]; then
   run_once
