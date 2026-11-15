@@ -1,11 +1,13 @@
 /* Dedicated 16:9 pages for overview / servers / events / about. */
 
+body[data-page="overview"],
 body[data-page="servers"],
 body[data-page="events"],
 body[data-page="about"] {
   overflow: hidden;
 }
 
+body[data-page="overview"] .shell,
 body[data-page="servers"] .shell,
 body[data-page="events"] .shell,
 body[data-page="about"] .shell {
@@ -19,9 +21,136 @@ body[data-page="about"] .shell {
   min-height: 0;
 }
 
+body[data-page="overview"] .footer,
 body[data-page="servers"] .footer,
 body[data-page="events"] .footer,
 body[data-page="about"] .footer {
+  display: none;
+}
+
+/* ----------------------------------------------------------------- overview */
+
+body[data-page="overview"] .status-banner,
+body[data-page="overview"] .split {
+  display: none;
+}
+
+body[data-page="overview"] .hero {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  gap: clamp(20px, 3vw, 46px);
+}
+
+body[data-page="overview"] .hero-copy {
+  min-height: 0;
+}
+
+body[data-page="overview"] .hero h1 {
+  margin: 14px 0 12px;
+  font-size: clamp(34px, 3.65vw, 58px);
+}
+
+body[data-page="overview"] .hero-desc {
+  max-width: 500px;
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+body[data-page="overview"] .hero-actions {
+  margin-top: 20px;
+}
+
+body[data-page="overview"] .hero-metrics {
+  display: none;
+}
+
+body[data-page="overview"] .globe-panel {
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+}
+
+body[data-page="overview"] .globe-stage {
+  min-height: 0;
+}
+
+body[data-page="overview"] .kpis {
+  flex: 0 0 auto;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+body[data-page="overview"] .kpi-card {
+  padding: 12px 16px 10px;
+}
+
+body[data-page="overview"] .kpi-icon {
+  width: 28px;
+  height: 28px;
+}
+
+body[data-page="overview"] .kpi-value {
+  margin-top: 4px;
+  font-size: clamp(24px, 2vw, 30px);
+}
+
+body[data-page="overview"] .kpi-foot {
+  margin-top: 4px;
+  font-size: 9.5px;
+}
+
+body[data-page="overview"] .kpi-visual {
+  margin-top: 5px;
+}
+
+body[data-page="overview"] .kpi-meter {
+  margin-top: 6px;
+}
+
+body[data-page="overview"] .nodes-section {
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0;
+}
+
+body[data-page="overview"] .nodes-section .section-head {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+body[data-page="overview"] .nodes-section .section-title h2 {
+  font-size: 20px;
+}
+
+body[data-page="overview"] .nodes-section .section-title p,
+body[data-page="overview"] .nodes-section .section-note,
+body[data-page="overview"] .nodes-section .node-tools {
+  display: none;
+}
+
+body[data-page="overview"] .node-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body[data-page="overview"] .node-grid .node-card:nth-child(n + 4) {
+  display: none;
+}
+
+body[data-page="overview"] .node-card {
+  padding: 12px 14px 10px;
+}
+
+body[data-page="overview"] .node-stats {
+  margin-top: 9px;
+  padding-top: 8px;
+}
+
+body[data-page="overview"] .spark,
+body[data-page="overview"] .daily,
+body[data-page="overview"] .node-note,
+body[data-page="overview"] .node-foot {
   display: none;
 }
 
@@ -288,12 +417,14 @@ body[data-page="about"] .info-note {
 }
 
 @media (max-width: 960px) {
+  body[data-page="overview"],
   body[data-page="servers"],
   body[data-page="events"],
   body[data-page="about"] {
     overflow: auto;
   }
 
+  body[data-page="overview"] .shell,
   body[data-page="servers"] .shell,
   body[data-page="events"] .shell,
   body[data-page="about"] .shell {
@@ -301,6 +432,21 @@ body[data-page="about"] .info-note {
     min-height: calc(100svh - 72px);
     max-width: 100%;
     padding-bottom: 32px;
+  }
+
+  body[data-page="overview"] .hero {
+    flex: 0 0 auto;
+    grid-template-columns: 1fr;
+    padding: 12px 0 18px;
+  }
+
+  body[data-page="overview"] .globe-panel {
+    height: auto;
+    min-height: 400px;
+  }
+
+  body[data-page="overview"] .node-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   body[data-page="servers"] .node-grid {
@@ -329,6 +475,7 @@ body[data-page="about"] .info-note {
 }
 
 @media (max-width: 620px) {
+  body[data-page="overview"] .node-grid,
   body[data-page="servers"] .node-grid {
     grid-template-columns: 1fr;
   }
