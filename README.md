@@ -322,6 +322,37 @@ node tools/create-admin.mjs admin --reset
 
 Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` 面向 systemd（Debian / Ubuntu / Rocky 等）；Alpine 等 OpenRC 系统请手动把脚本和 env 文件放好，并用 OpenRC 或 supervisor 常驻。
 
+### 一行安装（SSH 中直接粘贴）
+
+先在面板 `config.json` 里给节点填好 `agentKey`，然后在**目标服务器**的 SSH 里执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+    bash -s -- https://status.example.com <AGENT_TOKEN>
+```
+
+不需要检查服务时：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+  | sudo bash -s -- https://status.example.com <AGENT_TOKEN>
+```
+
+脚本会自动下载 Agent 和 systemd 单元，写入 `/etc/eleganza-agent.env`，然后启动 `eleganza-agent`。
+
+如果更谨慎，先下载再检查，最后执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+  -o /tmp/install-eleganza-agent.sh
+less /tmp/install-eleganza-agent.sh
+sudo ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+  bash /tmp/install-eleganza-agent.sh https://status.example.com <AGENT_TOKEN>
+```
+
+### 本地仓库安装
+
 ```bash
 # 在面板配置里给节点填好 agentKey，然后在目标机上：
 sudo ELEGANZA_SERVICES="nginx xray" \

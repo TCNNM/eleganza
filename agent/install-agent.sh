@@ -1,27 +1,103 @@
 #!/usr/bin/env bash
-# 一键安装 Eleganza agent（systemd）
-# 用法:
-#   sudo ./install-agent.sh https://status.example.com <AGENT_TOKEN>
-#   sudo ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" ./install-agent.sh ...
+# Eleganza agent 一键安装（systemd）
+#
+# 本地安装（脚本同目录已有 eleganza-agent.sh / .service）：
+#   sudo ELEGANZA_SERVICES="nginx xray" ./install-agent.sh https://panel.example.com <TOKEN>
+#
+# GitHub 一行安装（脚本会自动下载其余文件）：
+#   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+#     | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+#       bash -s -- https://panel.example.com <TOKEN>
+#
+# 可选环境变量：ELEGANZA_SERVICES / ELEGANZA_MOUNTS / ELEGANZA_INTERVAL /
+#               ELEGANZA_NODE_NAME / ELEGANZA_INSECURE / ELEGANZA_AGENT_BASE / FORCE
 set -euo pipefail
+
+PANEL_URL="${1:-}"
+TOKEN="${2:-}"
+RAW_BASE="${ELEGANZA_AGENT_BASE:-https://raw.githubusercontent.com/TCNNM/eleganza/main/agent}"
+
+usage() {
+  cat <<'USAGE'
+用法:
+  sudo ./install-agent.sh https://panel.example.com <AGENT_TOKEN>
+
+GitHub 一行安装:
+  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/agent/install-agent.sh \
+    | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+      bash -s -- https://panel.example.com <AGENT_TOKEN>
+USAGE
+}
+
+if [ -z "$PANEL_URL" ] || [ -z "$TOKEN" ]; then
+  usage >&2
+  exit 2
+fi
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   echo "请用 root 运行（sudo）。" >&2
   exit 1
 fi
 
-PANEL_URL="${1:-}"
-TOKEN="${2:-}"
-if [ -z "$PANEL_URL" ] || [ -z "$TOKEN" ]; then
-  echo "用法: sudo $0 https://status.example.com <AGENT_TOKEN>" >&2
-  exit 2
+if ! command -v systemctl >/dev/null 2>&1; then
+  echo "当前系统没有 systemd。请参考 README 的「手动运行 / 没有 systemd」一节。" >&2
+  exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TMP_DIR=""
+cleanup() {
+  if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
+}
+trap cleanup EXIT
+
+fetch_file() {
+  local url="$1"
+  local output="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --max-time 30 "$url" -o "$output"
+    return
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -qO "$output" --timeout=30 "$url"
+    return
+  fi
+  echo "需要 curl 或 wget 才能下载 Agent 文件。" >&2
+  return 1
+}
+
+SCRIPT_DIR=""
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
+if [ -n "$SCRIPT_DIR" ] \
+  && [ -s "$SCRIPT_DIR/eleganza-agent.sh" ] \
+  && [ -s "$SCRIPT_DIR/eleganza-agent.service" ]; then
+  SRC_DIR="$SCRIPT_DIR"
+else
+  TMP_DIR="$(mktemp -d)"
+  SRC_DIR="$TMP_DIR"
+  echo "下载 Eleganza Agent 文件: $RAW_BASE"
+  fetch_file "$RAW_BASE/eleganza-agent.sh" "$SRC_DIR/eleganza-agent.sh"
+  fetch_file "$RAW_BASE/eleganza-agent.service" "$SRC_DIR/eleganza-agent.service"
+fi
+
+if [ ! -s "$SRC_DIR/eleganza-agent.sh" ] || [ ! -s "$SRC_DIR/eleganza-agent.service" ]; then
+  echo "Agent 文件下载失败，请检查网络或 ELEGANZA_AGENT_BASE。" >&2
+  exit 1
+fi
+SHEBANG="$(sed -n '1p' "$SRC_DIR/eleganza-agent.sh")"
+if [ "$SHEBANG" != "#!/usr/bin/env bash" ] && [ "$SHEBANG" != "#!/bin/bash" ]; then
+  echo "下载的 eleganza-agent.sh 内容不合法。" >&2
+  exit 1
+fi
+
 mkdir -p /usr/local/bin
-cp "$SCRIPT_DIR/eleganza-agent.sh" /usr/local/bin/eleganza-agent
+cp "$SRC_DIR/eleganza-agent.sh" /usr/local/bin/eleganza-agent
 chmod 0755 /usr/local/bin/eleganza-agent
-cp "$SCRIPT_DIR/eleganza-agent.service" /etc/systemd/system/eleganza-agent.service
+cp "$SRC_DIR/eleganza-agent.service" /etc/systemd/system/eleganza-agent.service
 chmod 0644 /etc/systemd/system/eleganza-agent.service
 
 if [ -f /etc/eleganza-agent.env ] && [ "${FORCE:-0}" != "1" ]; then
@@ -41,8 +117,13 @@ EOF
 fi
 
 systemctl daemon-reload
-systemctl enable --now eleganza-agent
-sleep 1
-systemctl --no-pager --lines=5 status eleganza-agent || true
+systemctl enable eleganza-agent >/dev/null 2>&1 || true
+systemctl restart eleganza-agent
+sleep 2
+
 echo
-echo "完成。日志: journalctl -u eleganza-agent -f"
+echo "安装完成。"
+systemctl --no-pager --lines=8 status eleganza-agent || true
+echo
+echo "实时日志: journalctl -u eleganza-agent -f"
+echo "配置文件: /etc/eleganza-agent.env"
