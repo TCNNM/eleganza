@@ -844,6 +844,29 @@ body.modal-open {
   color: var(--text-3);
 }
 
+.probe-advanced {
+  margin-top: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 0 10px 10px;
+}
+
+.probe-advanced summary {
+  padding: 9px 0 5px;
+  cursor: pointer;
+  font-size: 10.5px;
+  color: var(--text-3);
+  user-select: none;
+}
+
+.probe-advanced summary:hover {
+  color: var(--accent);
+}
+
+.probe-advanced .code-block {
+  margin-top: 4px;
+}
+
 .dialog-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

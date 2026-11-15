@@ -110,6 +110,14 @@ export class Store {
     this.dirty = false;
   }
 
+  addTarget(target) {
+    if (!target?.id || this.targets.has(target.id)) throw new Error('服务器 ID 重复');
+    const state = createState(target);
+    this.targets.set(target.id, state);
+    this.markDirty();
+    return state;
+  }
+
   // ---------------------------------------------------------------- lifecycle
 
   async load() {

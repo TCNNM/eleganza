@@ -205,6 +205,20 @@ test('account system: setup, login, preferences, admin and access control', asyn
       body: JSON.stringify({ name: 'Nope' }),
     })).status, 403);
 
+    const createdTarget = await fetch(`${server.base}/api/admin/targets`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: '{}',
+    });
+    assert.equal(createdTarget.status, 201);
+    const createdTargetBody = await createdTarget.json();
+    assert.match(createdTargetBody.target.agentKey, /^[0-9a-f]{48}$/);
+    assert.equal((await fetch(`${server.base}/api/admin/targets`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: opsCookie },
+      body: '{}',
+    })).status, 403);
+
     const disabled = await fetch(`${server.base}/api/admin/users/${ops.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', cookie: adminCookie },

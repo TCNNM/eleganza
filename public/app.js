@@ -1107,6 +1107,9 @@ function togglePopover(popover, button) {
 
 function updateAccountUI() {
   const user = state.auth?.user;
+  if (els.probeCommandButton) {
+    els.probeCommandButton.hidden = user?.role !== 'admin';
+  }
   if (!user) {
     els.accountAvatar.innerHTML = GUEST_AVATAR;
     els.accountAvatar.classList.add('guest');
@@ -1374,11 +1377,12 @@ function panelBaseUrl() {
 }
 
 function openProbeCommandDialog() {
+  if (state.auth?.user?.role !== 'admin') return;
   const base = panelBaseUrl();
   const fromConfig = Boolean(state.overview?.site?.publicUrl);
   const fallbackNote = fromConfig
     ? ''
-    : '<p class="probe-footnote">当前使用浏览器访问地址。如果这是 127.0.0.1 或 SSH 隧道地址，请在 config.json 中把 <code>site.publicUrl</code> 设置为对外域名。</p>';
+    : '<p class="probe-footnote">当前使用浏览器访问地址。如果这是 127.0.0.1 或 SSH 隧道地址，请在 config.json 中设置 <code>site.publicUrl</code>。</p>';
   let host = '';
   let isHttps = false;
   try {
@@ -1390,68 +1394,79 @@ function openProbeCommandDialog() {
   }
   const isIpHost = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':');
   const internalTls = isHttps && isIpHost;
-  const extraEnv = internalTls ? ' ELEGANZA_INSECURE=1' : '';
   const tlsNote = internalTls
-    ? '<p class="probe-footnote">当前是 IP + Caddy 内部证书，命令已自动加入 <code>ELEGANZA_INSECURE=1</code>；浏览器首次访问也会提示证书不受信任。</p>'
+    ? '<p class="probe-footnote">当前是 IP + Caddy 内部证书，命令会自动加入 <code>ELEGANZA_INSECURE=1</code>。</p>'
     : '';
-  const buildCommand = (force) => `read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
-  | sudo env${force ? ' FORCE=1' : ''} ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
-    bash -s -- '${base}'`;
-  const command = buildCommand(false);
-  const overwriteCommand = buildCommand(true);
-  const keyCommand = `openssl rand -hex 24\n# 没有 openssl 时：\nnode -e "console.log(require('node:crypto').randomBytes(24).toString('hex'))"`;
 
   openDialog({
-    kicker: 'AGENT INSTALL',
-    title: '探针快捷安装',
-    subtitle: `当前站点：${base}`,
+    kicker: 'AGENT ENROLL',
+    title: '接入探针',
+    subtitle: `管理员 · 当前站点：${base}`,
     body: `
       <div class="dialog-section">
-        <p class="dialog-lead">先生成 agentKey 并填入面板配置，再到目标服务器的 SSH 中执行安装命令。安装脚本会自动下载 Agent、写入 systemd 服务并启动。</p>
+        <p class="dialog-lead">点击生成接入命令。面板会自动创建一台待接入服务器并生成专属 agentKey，不需要手动编辑 config.json，也不需要输入 Token。</p>
         <div class="info-cell probe-site-cell">
           <span>当前绑定站点${fromConfig ? ' · site.publicUrl' : ' · 当前访问地址'}</span>
           <strong>${escapeHtml(base)}</strong>
         </div>
-        <div class="code-block">
-          <div class="code-head">
-            <span>GENERATE AGENT KEY</span>
-            <button class="copy-button" type="button" data-copy-target="probe-key-command" data-label="复制命令">复制命令</button>
-          </div>
-          <pre id="probe-key-command" tabindex="0">${escapeHtml(keyCommand)}</pre>
+        <button class="button primary" id="generate-probe-command" type="button">生成接入命令</button>
+        <p class="probe-footnote" id="probe-generate-note">生成后把命令粘贴到目标服务器的 SSH 中执行即可。</p>
+      </div>
+      <div class="dialog-section" id="probe-command-result" hidden></div>`,
+  });
+
+  const generate = $('#generate-probe-command', els.dialogBody);
+  const result = $('#probe-command-result', els.dialogBody);
+  generate.addEventListener('click', async () => {
+    generate.disabled = true;
+    generate.textContent = '正在创建服务器…';
+    try {
+      const data = await api('/api/admin/targets', {
+        method: 'POST',
+        body: '{}',
+      });
+      const target = data.target;
+      const insecureEnv = internalTls ? ' ELEGANZA_INSECURE=1' : '';
+      const buildCommand = (force) => `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
+  | sudo env${force ? ' FORCE=1' : ''} ELEGANZA_TOKEN='${target.agentKey}'${insecureEnv} \\
+    bash -s -- '${base}'`;
+      const command = buildCommand(false);
+      const overwriteCommand = buildCommand(true);
+
+      result.innerHTML = `
+        <div class="info-cell probe-site-cell">
+          <span>已创建服务器</span>
+          <strong>${escapeHtml(target.name)}</strong>
         </div>
-        <p class="probe-footnote">生成后把结果填入面板 <code>config.json</code> 对应服务器的 <code>agentKey</code>，下面的安装命令会把它作为 <code>ELEGANZA_TOKEN</code> 写入目标机。</p>
         <div class="code-block">
           <div class="code-head">
-            <span>AGENT INSTALL · SYSTEMD</span>
+            <span>AGENT INSTALL · 已自动绑定 agentKey</span>
             <button class="copy-button" type="button" data-copy-target="probe-command-code" data-label="复制命令">复制命令</button>
           </div>
           <pre id="probe-command-code" tabindex="0">${escapeHtml(command)}</pre>
         </div>
-        <div class="code-block">
-          <div class="code-head">
-            <span>AGENT OVERWRITE · FORCE=1</span>
-            <button class="copy-button" type="button" data-copy-target="probe-overwrite-code" data-label="复制覆盖命令">复制覆盖命令</button>
+        <details class="probe-advanced">
+          <summary>需要覆盖旧安装？显示强制重装命令</summary>
+          <div class="code-block">
+            <div class="code-head">
+              <span>AGENT OVERWRITE · FORCE=1</span>
+              <button class="copy-button" type="button" data-copy-target="probe-overwrite-code" data-label="复制覆盖命令">复制覆盖命令</button>
+            </div>
+            <pre id="probe-overwrite-code" tabindex="0">${escapeHtml(overwriteCommand)}</pre>
           </div>
-          <pre id="probe-overwrite-code" tabindex="0">${escapeHtml(overwriteCommand)}</pre>
-        </div>
-        <p class="probe-footnote">覆盖安装会重写目标机上的 <code>/etc/eleganza-agent.env</code>，适用于修复旧 Token、旧面板地址或旧脚本。</p>
-      </div>
-      <div class="dialog-section">
-        <h3>执行前</h3>
-        <ol class="probe-steps">
-          <li>先在面板的 <code>config.json</code> 中为这台服务器添加一个 <code>type: "agent"</code> 探针节点。</li>
-          <li>执行命令后按提示输入该服务器的 <code>agentKey</code>；Token 不会写进 shell 历史。</li>
-          <li>目标服务器需要能访问 <code>${escapeHtml(base)}</code>，并装有 curl 或 wget。</li>
-        </ol>
-        <p class="probe-footnote">每台服务器使用独立的 agentKey。安装完成后用 <code>journalctl -u eleganza-agent -f</code> 查看日志。</p>
+        </details>
+        <p class="probe-footnote">在目标服务器执行后，约 60 秒内出现新服务器。之后可在服务器详情中重命名。</p>
         ${fallbackNote}
-        ${tlsNote}
-        <a class="panel-link" href="https://github.com/TCNNM/eleganza#agent" target="_blank" rel="noreferrer">
-          查看完整 Agent 安装说明
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4h9v9M16 4 6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </a>
-      </div>`,
+        ${tlsNote}`;
+      result.hidden = false;
+      generate.disabled = false;
+      generate.textContent = '再接入一台';
+      refreshOverview().catch(() => {});
+    } catch (error) {
+      generate.disabled = false;
+      generate.textContent = '生成接入命令';
+      dialogError(els.dialogBody, error.message);
+    }
   });
 }
 

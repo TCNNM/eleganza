@@ -1,5 +1,6 @@
 import http from 'node:http';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { parseCookies, readJsonBody, safeEqual } from './util.mjs';
@@ -272,6 +273,43 @@ export function createEleganzaServer({ config, store, accounts, publicDir, versi
     }
   }
 
+  async function handleAdminCreateTarget(req, res, user) {
+    if (user.role !== 'admin') return sendJson(req, res, 403, { error: '需要管理员权限' });
+    const body = await readBody(req, res, 8 * 1024);
+    if (!body) return;
+    const requestedName = typeof body.name === 'string' ? body.name.trim() : '';
+    if (requestedName.length > 60 || /[\r\n]/.test(requestedName)) {
+      return sendJson(req, res, 400, { error: '名称长度必须为 1-60 个字符，且不能包含换行' });
+    }
+    const id = `server-${randomBytes(4).toString('hex')}`;
+    const target = {
+      id,
+      name: requestedName || `新服务器 ${id.slice(-4)}`,
+      type: 'agent',
+      agentKey: randomBytes(24).toString('hex'),
+      services: [],
+      intervalSeconds: 20,
+      hidden: false,
+    };
+
+    try {
+      const raw = JSON.parse(await readFile(config.file, 'utf8'));
+      raw.targets = Array.isArray(raw.targets) ? raw.targets : [];
+      raw.targets.push(target);
+      await writeFile(config.file, `${JSON.stringify(raw, null, 2)}\n`, 'utf8');
+      config.targets.push(target);
+      store.addTarget(target);
+    } catch (error) {
+      log.warn?.(`[Eleganza] 创建服务器失败: ${error.message}`);
+      return sendJson(req, res, 500, { error: '无法写入配置文件' });
+    }
+
+    log.info?.(`[Eleganza] 已创建待接入服务器 ${target.name} (${target.id})`);
+    return sendJson(req, res, 201, {
+      target: { id: target.id, name: target.name, agentKey: target.agentKey },
+    });
+  }
+
   async function handleAdminTarget(req, res, user, pathname, method) {
     if (user.role !== 'admin') return sendJson(req, res, 403, { error: '需要管理员权限' });
     const match = /^\/api\/admin\/targets\/([a-zA-Z0-9._-]+)$/.exec(pathname);
@@ -490,6 +528,15 @@ export function createEleganzaServer({ config, store, accounts, publicDir, versi
     if (pathname === '/api/admin/users' || pathname.startsWith('/api/admin/users/')) {
       if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
       return handleAdminUsers(req, res, user, pathname, req.method);
+    }
+
+    if (pathname === '/api/admin/targets') {
+      if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return sendJson(req, res, 405, { error: 'Method Not Allowed' });
+      }
+      return handleAdminCreateTarget(req, res, user);
     }
 
     if (pathname.startsWith('/api/admin/targets/')) {
