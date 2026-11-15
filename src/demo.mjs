@@ -49,7 +49,7 @@ function diurnal(hourOfDay) {
 function tlsInfo(daysLeft) {
   const validTo = new Date(Date.now() + daysLeft * DAY).toISOString();
   return {
-    subject: 'polaris-demo.example',
+    subject: 'eleganza-demo.example',
     issuer: "Let's Encrypt R11",
     validFrom: new Date(Date.now() - (90 - daysLeft) * DAY).toISOString(),
     validTo,

@@ -24,14 +24,14 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function colorFor(value, warn = 350) {
+function colorFor(value, warn = 350, accent = '#34e6c6') {
   if (value == null) return 'rgba(148,163,184,.35)';
   if (value >= warn * 2) return '#ff617d';
   if (value >= warn) return '#ffb85c';
-  return '#34e6c6';
+  return accent;
 }
 
-export function sparkline(samples, { warn = 350 } = {}) {
+export function sparkline(samples, { warn = 350, accent = '#34e6c6' } = {}) {
   const width = 320;
   const height = 60;
   const padX = 2;
@@ -83,13 +83,13 @@ export function sparkline(samples, { warn = 350 } = {}) {
   return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="近期延迟曲线">
     <defs>
       <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#34e6c6" stop-opacity=".28"/>
-        <stop offset="1" stop-color="#34e6c6" stop-opacity="0"/>
+        <stop offset="0" stop-color="${accent}" stop-opacity=".28"/>
+        <stop offset="1" stop-color="${accent}" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <line x1="0" y1="${height - padBottom}" x2="${width}" y2="${height - padBottom}" stroke="rgba(148,163,184,.12)" stroke-width="1"/>
     <path d="${area}" fill="url(#${id})"/>
-    <path d="${line}" fill="none" stroke="${colorFor(finite[finite.length - 1], warn)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <path d="${line}" fill="none" stroke="${colorFor(finite[finite.length - 1], warn, accent)}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
     ${ticks}
   </svg>`;
 }
@@ -177,6 +177,9 @@ export class TimeChart {
     const ctx = this.ctx;
     if (!ctx || !this.width) return;
     ctx.clearRect(0, 0, this.width, this.height);
+    const styles = getComputedStyle(document.documentElement);
+    const labelColor = styles.getPropertyValue('--chart-label').trim() || 'rgba(148,163,184,.55)';
+    const gridColor = styles.getPropertyValue('--chart-grid').trim() || 'rgba(148,163,184,.09)';
     const points = this.points();
     const key = this.data?.valueKey || 'latency';
     const color = this.data?.color || '#34e6c6';
@@ -185,7 +188,7 @@ export class TimeChart {
     const values = points.map((point) => (Number.isFinite(point[key]) ? point[key] : null));
     const finite = values.filter((value) => value != null);
     if (!points.length || !finite.length) {
-      ctx.fillStyle = 'rgba(148,163,184,.5)';
+      ctx.fillStyle = labelColor;
       ctx.font = MONO;
       ctx.textAlign = 'center';
       ctx.fillText(`该时间范围内暂无${label}样本`, this.width / 2, this.height / 2);
@@ -204,12 +207,12 @@ export class TimeChart {
     ctx.lineWidth = 1;
     for (let i = 0; i <= 3; i += 1) {
       const y = top + (i / 3) * plotHeight;
-      ctx.strokeStyle = 'rgba(148,163,184,.09)';
+      ctx.strokeStyle = gridColor;
       ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(this.width - right, y);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(148,163,184,.55)';
+      ctx.fillStyle = labelColor;
       ctx.textAlign = 'right';
       ctx.fillText(`${Math.round(max - (i / 3) * max)}`, left - 8, y);
     }
@@ -220,7 +223,7 @@ export class TimeChart {
     for (let i = 0; i < xLabels; i += 1) {
       const index = Math.round((i / (xLabels - 1)) * (points.length - 1));
       const x = left + (index / Math.max(1, points.length - 1)) * plotWidth;
-      ctx.fillStyle = 'rgba(148,163,184,.45)';
+      ctx.fillStyle = labelColor;
       ctx.textAlign = i === 0 ? 'left' : (i === xLabels - 1 ? 'right' : 'center');
       ctx.fillText(formatAxisTime(points[index].t, this.data.range), x, this.height - bottom + 8);
     }

@@ -1,0 +1,28 @@
+[Unit]
+Description=Eleganza probe panel
+Documentation=https://github.com/your-name/eleganza
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eleganza
+Group=eleganza
+WorkingDirectory=/opt/eleganza
+Environment=ELEGANZA_HOST=127.0.0.1
+Environment=ELEGANZA_PORT=8787
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/node /opt/eleganza/server.mjs
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/eleganza/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

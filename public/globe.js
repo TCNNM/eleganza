@@ -16,7 +16,7 @@ const STATUS_TEXT = {
 const DEG = Math.PI / 180;
 
 function decodeLand() {
-  const source = window.POLARIS_LAND;
+  const source = window.ELEGANZA_LAND;
   const bytes = Uint8Array.from(atob(source.data), (ch) => ch.charCodeAt(0));
   const dots = [];
   for (let row = 0; row < source.height; row += 1) {
@@ -92,10 +92,20 @@ function mix(a, b, t) {
   return a + (b - a) * t;
 }
 
+function hexToRgb(hex) {
+  const value = String(hex || '#34e6c6').replace('#', '');
+  const full = value.length === 3 ? value.split('').map((ch) => ch + ch).join('') : value;
+  const int = Number.parseInt(full, 16);
+  if (!Number.isFinite(int)) return '52,230,198';
+  return `${(int >> 16) & 255},${(int >> 8) & 255},${int & 255}`;
+}
+
 export class Globe {
   constructor(canvas, options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.accent = options.accent || '#34e6c6';
+    this.accentRgb = hexToRgb(this.accent);
     this.hub = options.hub || { lat: 31.23, lon: 121.47, name: '探针中枢' };
     this.onSelect = options.onSelect || (() => {});
     this.onCoordChange = options.onCoordChange || (() => {});
@@ -194,6 +204,11 @@ export class Globe {
       duration: 900,
     };
     this.idleUntil = performance.now() + 4000;
+  }
+
+  setAccent(hex) {
+    this.accent = hex || '#34e6c6';
+    this.accentRgb = hexToRgb(this.accent);
   }
 
   setPaused(value) {
@@ -298,9 +313,9 @@ export class Globe {
 
     // atmosphere
     const atmosphere = ctx.createRadialGradient(cx, cy, r * 0.86, cx, cy, r * 1.24);
-    atmosphere.addColorStop(0, 'rgba(52,230,198,.08)');
-    atmosphere.addColorStop(0.55, 'rgba(52,230,198,.035)');
-    atmosphere.addColorStop(1, 'rgba(52,230,198,0)');
+    atmosphere.addColorStop(0, `rgba(${this.accentRgb},.08)`);
+    atmosphere.addColorStop(0.55, `rgba(${this.accentRgb},.035)`);
+    atmosphere.addColorStop(1, `rgba(${this.accentRgb},0)`);
     ctx.fillStyle = atmosphere;
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.24, 0, Math.PI * 2);
@@ -320,7 +335,7 @@ export class Globe {
     ctx.save();
     ctx.strokeStyle = 'rgba(120, 190, 210, 0.22)';
     ctx.lineWidth = 1;
-    ctx.shadowColor = 'rgba(52, 230, 198, 0.35)';
+    ctx.shadowColor = `rgba(${this.accentRgb}, 0.35)`;
     ctx.shadowBlur = 18;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -452,7 +467,7 @@ export class Globe {
     if (point.z <= 0.02) return;
     const pulse = (Math.sin(now / 900) + 1) / 2;
     ctx.save();
-    ctx.strokeStyle = 'rgba(52,230,198,.45)';
+    ctx.strokeStyle = `rgba(${this.accentRgb},.45)`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(point.x, point.y, 5.5 + pulse * 4, 0, Math.PI * 2);
@@ -462,8 +477,8 @@ export class Globe {
     ctx.arc(point.x, point.y, 10 + pulse * 7, 0, Math.PI * 2);
     ctx.stroke();
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#34e6c6';
-    ctx.shadowColor = '#34e6c6';
+    ctx.fillStyle = this.accent;
+    ctx.shadowColor = this.accent;
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(point.x, point.y, 2.8, 0, Math.PI * 2);

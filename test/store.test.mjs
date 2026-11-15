@@ -8,7 +8,7 @@ import { Store } from '../src/store.mjs';
 import { DAY, HOUR } from '../src/util.mjs';
 
 async function makeStore(extra = {}) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'polaris-store-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'eleganza-store-'));
   const file = path.join(dir, 'config.json');
   await writeFile(file, JSON.stringify({
     dataDir: 'data',

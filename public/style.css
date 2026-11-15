@@ -1,5 +1,5 @@
 /* ============================================================
-   Polaris — probe panel
+   Eleganza — probe panel
    A dark, quiet interface: deep space, mint signal, glass cards.
    ============================================================ */
 
@@ -13,8 +13,15 @@
   --text: #e9eef8;
   --text-2: #9aa7bc;
   --text-3: #6f7b92;
-  --mint: #34e6c6;
-  --mint-dim: rgba(52, 230, 198, 0.14);
+  --accent: #34e6c6;
+  --accent-2: #8b8bff;
+  --accent-rgb: 52, 230, 198;
+  --accent-2-rgb: 139, 139, 255;
+  --mint: var(--accent);
+  --mint-dim: rgba(var(--accent-rgb), 0.14);
+  --chart-label: rgba(148, 163, 184, 0.55);
+  --chart-grid: rgba(148, 163, 184, 0.09);
+  --chart-base: rgba(148, 163, 184, 0.12);
   --blue: #6b9bff;
   --violet: #a78bfa;
   --green: #35e0a1;
@@ -30,6 +37,48 @@
   --radius-md: 14px;
   --ease: cubic-bezier(0.22, 0.8, 0.24, 1);
   --shadow-card: 0 24px 60px -36px rgba(0, 0, 0, 0.85);
+}
+
+html[data-accent="mint"] {
+  --accent: #34e6c6;
+  --accent-2: #8b8bff;
+  --accent-rgb: 52, 230, 198;
+  --accent-2-rgb: 139, 139, 255;
+}
+
+html[data-accent="azure"] {
+  --accent: #5ba8ff;
+  --accent-2: #7c8bff;
+  --accent-rgb: 91, 168, 255;
+  --accent-2-rgb: 124, 139, 255;
+}
+
+html[data-accent="violet"] {
+  --accent: #a78bfa;
+  --accent-2: #f0abfc;
+  --accent-rgb: 167, 139, 250;
+  --accent-2-rgb: 240, 171, 252;
+}
+
+html[data-accent="amber"] {
+  --accent: #ffb85c;
+  --accent-2: #ff8f5c;
+  --accent-rgb: 255, 184, 92;
+  --accent-2-rgb: 255, 143, 92;
+}
+
+html[data-accent="rose"] {
+  --accent: #ff7fa3;
+  --accent-2: #c084fc;
+  --accent-rgb: 255, 127, 163;
+  --accent-2-rgb: 192, 132, 252;
+}
+
+html[data-accent="champagne"] {
+  --accent: #e6c48a;
+  --accent-2: #f3ddb0;
+  --accent-rgb: 230, 196, 138;
+  --accent-2-rgb: 243, 221, 176;
 }
 
 *,
@@ -85,7 +134,7 @@ svg {
 }
 
 ::selection {
-  background: rgba(52, 230, 198, 0.3);
+  background: rgba(var(--accent-rgb), 0.3);
   color: #fff;
 }
 
@@ -97,7 +146,7 @@ svg {
   z-index: -1;
   overflow: hidden;
   background:
-    radial-gradient(1200px 720px at 8% -12%, rgba(52, 230, 198, 0.1), transparent 62%),
+    radial-gradient(1200px 720px at 8% -12%, rgba(var(--accent-rgb), 0.1), transparent 62%),
     radial-gradient(1000px 680px at 98% 4%, rgba(139, 139, 255, 0.1), transparent 58%),
     radial-gradient(900px 600px at 50% 120%, rgba(43, 88, 160, 0.1), transparent 65%),
     linear-gradient(180deg, #05070d 0%, #060a12 42%, #05070d 100%);
@@ -116,7 +165,7 @@ svg {
   height: 46vw;
   left: -12vw;
   top: -16vw;
-  background: radial-gradient(circle, rgba(52, 230, 198, 0.26), transparent 68%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.26), transparent 68%);
 }
 
 .aurora-b {
@@ -183,9 +232,9 @@ svg {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid rgba(52, 230, 198, 0.22);
-  background: linear-gradient(160deg, rgba(52, 230, 198, 0.1), rgba(139, 139, 255, 0.06));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 24px -6px rgba(52, 230, 198, 0.35);
+  border: 1px solid rgba(var(--accent-rgb), 0.24);
+  background: linear-gradient(160deg, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-2-rgb), 0.07));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 24px -6px rgba(var(--accent-rgb), 0.35);
 }
 
 .brand-mark svg {
@@ -396,7 +445,7 @@ svg {
   height: 6px;
   border-radius: 50%;
   background: var(--mint);
-  box-shadow: 0 0 12px rgba(52, 230, 198, 0.85);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.85);
   animation: breathe 2.6s ease-in-out infinite;
 }
 
@@ -422,7 +471,7 @@ svg {
 }
 
 .gradient-text {
-  background: linear-gradient(102deg, #8ff8e5 0%, #5fd0ff 42%, #9c9bff 100%);
+  background: linear-gradient(102deg, var(--accent) 0%, var(--accent-2) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -465,13 +514,13 @@ svg {
 
 .button.primary {
   color: #04110f;
-  background: linear-gradient(120deg, #64f4d9 0%, #47c9ff 55%, #9db4ff 100%);
-  box-shadow: 0 12px 34px -16px rgba(52, 230, 198, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 100%);
+  box-shadow: 0 12px 34px -16px rgba(var(--accent-rgb), 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .button.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 44px -16px rgba(52, 230, 198, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 18px 44px -16px rgba(var(--accent-rgb), 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .button.ghost {
@@ -546,7 +595,7 @@ svg {
   border-radius: var(--radius-xl);
   background:
     linear-gradient(180deg, rgba(12, 18, 30, 0.9), rgba(6, 10, 18, 0.94)) padding-box,
-    linear-gradient(155deg, rgba(52, 230, 198, 0.38), rgba(139, 139, 255, 0.16) 46%, rgba(148, 163, 184, 0.06) 100%) border-box;
+    linear-gradient(155deg, rgba(var(--accent-rgb), 0.38), rgba(var(--accent-2-rgb), 0.16) 46%, rgba(148, 163, 184, 0.06) 100%) border-box;
   box-shadow: 0 40px 90px -50px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   animation: rise 0.9s 0.08s var(--ease) both;
   overflow: hidden;
@@ -556,7 +605,7 @@ svg {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 44%, rgba(52, 230, 198, 0.07), transparent 58%);
+  background: radial-gradient(circle at 50% 44%, rgba(var(--accent-rgb), 0.07), transparent 58%);
   pointer-events: none;
 }
 
@@ -624,7 +673,7 @@ svg {
   left: 0;
   z-index: 4;
   padding: 9px 12px;
-  border: 1px solid rgba(52, 230, 198, 0.28);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
   border-radius: 10px;
   background: rgba(5, 9, 16, 0.92);
   backdrop-filter: blur(10px);
@@ -832,7 +881,7 @@ svg {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(320px 120px at 88% -20%, rgba(52, 230, 198, 0.06), transparent 70%);
+  background: radial-gradient(320px 120px at 88% -20%, rgba(var(--accent-rgb), 0.06), transparent 70%);
   pointer-events: none;
 }
 
@@ -932,7 +981,7 @@ svg {
   height: 100%;
   width: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--green), var(--mint));
+  background: linear-gradient(90deg, var(--green), var(--accent));
   box-shadow: 0 0 12px rgba(53, 224, 161, 0.4);
   transition: width 0.8s var(--ease);
 }
@@ -1078,7 +1127,7 @@ svg {
 }
 
 .search-box:focus-within {
-  border-color: rgba(52, 230, 198, 0.4);
+  border-color: rgba(var(--accent-rgb), 0.45);
   background: rgba(8, 12, 20, 0.85);
 }
 
@@ -1157,11 +1206,11 @@ svg {
 .node-card:focus-visible {
   transform: translateY(-3px);
   border-color: rgba(148, 163, 184, 0.26);
-  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(52, 230, 198, 0.06);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
 }
 
 .node-card:focus-visible {
-  border-color: rgba(52, 230, 198, 0.55);
+  border-color: rgba(var(--accent-rgb), 0.6);
 }
 
 .node-head {
@@ -1419,7 +1468,7 @@ svg {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(52, 230, 198, 0.75), rgba(107, 155, 255, 0.75));
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent-2-rgb), 0.85));
 }
 
 .meter.is-warn .meter-track span {
@@ -1724,12 +1773,12 @@ svg {
 
 .copy-button:hover {
   color: var(--mint);
-  border-color: rgba(52, 230, 198, 0.4);
+  border-color: rgba(var(--accent-rgb), 0.4);
 }
 
 .copy-button.is-done {
   color: var(--mint);
-  border-color: rgba(52, 230, 198, 0.4);
+  border-color: rgba(var(--accent-rgb), 0.4);
 }
 
 .code-block pre {
@@ -1832,7 +1881,7 @@ svg {
   height: 100dvh;
   border-left: 1px solid var(--line-strong);
   background:
-    radial-gradient(600px 300px at 100% 0%, rgba(52, 230, 198, 0.06), transparent 65%),
+    radial-gradient(600px 300px at 100% 0%, rgba(var(--accent-rgb), 0.07), transparent 65%),
     linear-gradient(180deg, #090e18, #060a11);
   box-shadow: -40px 0 90px -50px rgba(0, 0, 0, 0.95);
   transform: translateX(102%);
@@ -2036,8 +2085,8 @@ svg {
 }
 
 .range-tabs button.is-active {
-  color: var(--mint);
-  background: rgba(52, 230, 198, 0.1);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .chart-wrap {
@@ -2408,8 +2457,8 @@ svg {
 }
 
 .login-card input:focus {
-  border-color: rgba(52, 230, 198, 0.5);
-  box-shadow: 0 0 0 3px rgba(52, 230, 198, 0.08);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08);
 }
 
 .login-card .button {

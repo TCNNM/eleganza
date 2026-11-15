@@ -2,11 +2,11 @@
   "demo": true,
   "dataDir": "data/demo",
   "site": {
-    "title": "Polaris",
+    "title": "Eleganza",
     "subtitle": "全球节点 · 实时探针",
     "tagline": "让每一条线路，都清晰可见。",
     "description": "从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。",
-    "footer": "Polaris · 自建探针面板 · 当前为演示数据",
+    "footer": "Eleganza · 自建探针面板 · 当前为演示数据",
     "locale": "zh-CN",
     "hub": {
       "name": "上海",
@@ -14,10 +14,15 @@
       "lon": 121.4737
     },
     "refreshSeconds": 10,
-    "public": true,
     "showAddress": false,
     "showDetails": true,
     "historyDays": 35
+  },
+  "accounts": {
+    "required": false,
+    "allowRegistration": false,
+    "sessionHours": 168,
+    "setupToken": ""
   },
   "thresholds": {
     "latencyWarnMs": 350,

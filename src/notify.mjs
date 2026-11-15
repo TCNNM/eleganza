@@ -18,7 +18,7 @@ export class Notifier {
     if (!this.enabled) return;
     if (event === 'incident.resolved' && !this.notifyOnRecovery) return;
     const payload = {
-      source: 'polaris',
+      source: 'eleganza',
       event,
       sentAt: new Date().toISOString(),
       node: node ? {
@@ -43,14 +43,14 @@ export class Notifier {
     if (this.telegram.botToken && this.telegram.chatId) jobs.push(this.postTelegram(payload));
     const results = await Promise.allSettled(jobs);
     for (const result of results) {
-      if (result.status === 'rejected') this.log.warn?.(`[Polaris] 通知发送失败: ${result.reason?.message || result.reason}`);
+      if (result.status === 'rejected') this.log.warn?.(`[Eleganza] 通知发送失败: ${result.reason?.message || result.reason}`);
     }
   }
 
   async postWebhook(payload) {
     const response = await this.fetch(this.webhookUrl, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'user-agent': 'Polaris-Notifier/1.0' },
+      headers: { 'content-type': 'application/json', 'user-agent': 'Eleganza-Notifier/1.0' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(this.timeoutMs),
     });
@@ -64,13 +64,13 @@ export class Notifier {
       : '';
     const text = payload.event === 'incident.opened'
       ? [
-        `🔴 Polaris · ${node?.name || incident.targetName} 离线`,
+        `🔴 Eleganza · ${node?.name || incident.targetName} 离线`,
         `${incident.error || '探测失败'}`,
         `开始 ${new Date(incident.startedAt).toLocaleString('zh-CN', { hour12: false })}`,
         node?.availability30d != null ? `30 天可用率 ${node.availability30d}%` : '',
       ].filter(Boolean).join('\n')
       : [
-        `🟢 Polaris · ${node?.name || incident.targetName} 已恢复`,
+        `🟢 Eleganza · ${node?.name || incident.targetName} 已恢复`,
         `故障持续 ${duration}`,
         `恢复 ${new Date(incident.endedAt || Date.now()).toLocaleString('zh-CN', { hour12: false })}`,
       ].filter(Boolean).join('\n');

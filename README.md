@@ -1,27 +1,27 @@
-# Polaris · 全球节点探针面板
+# Eleganza · 全球节点探针面板
 
 > 一个类似 [Meridian](https://github.com/Dokoyamo-Lisa/Meridian) 状态页面的轻量探针面板：
-> 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、REST API 与 MCP。
+> 实时 3D 地球、延迟与可用率曲线、30 天历史、Agent 资源上报、账号系统、外观定制、REST API 与 MCP。
 >
 > **零第三方依赖**：后端只用 Node.js 内置模块，前端原生 HTML/CSS/JS，不需要构建。
 
-![Polaris 首页](docs/preview.png)
+![Eleganza 首页](docs/preview.png)
 
 ## 这是什么
 
-Polaris 把自己定位成 **只读的观测面板**，不接管代理协议、用户和订阅：
+Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、用户和订阅：
 
-| | Meridian / Rosélune | Polaris |
+| | Meridian / Rosélune | Eleganza |
 |---|---|---|
 | 定位 | 代理 / VPN 管理面板 | 探针与状态页 |
 | Xray / Hysteria2 / WireGuard 部署 | 有 | 无 |
-| 用户、订阅、流量计费 | 有 | 无 |
+| 代理用户、订阅、流量计费 | 有 | 无（只有面板账号） |
 | 实时地球、延迟、可用率、30 天历史 | 有 | 有 |
 | CPU / 内存 / 磁盘 / 服务状态 | 有 | 通过 Agent 上报 |
 | REST API / MCP | 有 | 有 |
 | 依赖 | Go 服务端 + Agent | 一个 Node 进程 |
 
-如果你已经用 3x-ui、XrayR 或自己的脚本管节点，只缺一个“一屏看全部”的状态页，Polaris 就是为这个场景写的。
+如果你已经用 3x-ui、XrayR 或自己的脚本管节点，只缺一个“一屏看全部”的状态页，Eleganza 就是为这个场景写的。
 如果你需要创建用户、生成订阅、管理协议，应该直接用 Meridian 或 3x-ui。
 
 ### 功能
@@ -32,17 +32,24 @@ Polaris 把自己定位成 **只读的观测面板**，不接管代理协议、�
 - **详情抽屉**：延迟趋势、区间可用率、TLS 证书、系统负载、服务状态、历史事件、节点元信息。
 - **事件时间线**：连续失败达到阈值后自动开事件，恢复后自动闭环，并记录持续时长。
 - **通知**：故障 / 恢复可推送通用 Webhook 或 Telegram。
-- **私有面板**：密码登录 + HMAC 会话 Cookie；README 里的反向代理示例带 HSTS。
-- **API 与 MCP**：只读 REST 接口；同一份数据通过 MCP 暴露给 Cursor、Claude Code 等 AI 客户端。
+- **账号系统**：首次启动初始化管理员，支持管理员 / 成员、登录会话、创建与禁用账号、重置密码；可选开放注册。
+- **外观定制**：右上角调色板切换深色 / 浅色、6 种强调色、信息密度、背景光效与动效；登录后偏好跟随账号同步。
+- **API 与 MCP**：只读探测数据 + 账号管理接口；同一份数据通过 MCP 暴露给 Cursor、Claude Code 等 AI 客户端。
 - **能屈能伸**：`npm run demo` 直接看演示；正式环境一个 `config.json` + 一条 `node server.mjs` 即可。
 
 ![节点详情](docs/drawer.png)
+
+![外观设置](docs/appearance.png)
+
+![用户管理](docs/accounts.png)
+
+![浅色主题](docs/light.png)
 
 ## 架构
 
 ```text
                         ┌──────────────────────────────┐
-   浏览器 / API / MCP ──▶│  Polaris（单进程 Node）        │
+   浏览器 / API / MCP ──▶│  Eleganza（单进程 Node）        │
                         │  · HTTP 静态页 + REST + MCP   │
                         │  · 主动 HTTP / TCP 探针        │
                         │  · 内存桶 + data/state.json   │
@@ -66,12 +73,19 @@ Polaris 把自己定位成 **只读的观测面板**，不接管代理协议、�
 ### 1. 先看演示
 
 ```bash
-git clone <this-repo> polaris && cd polaris
+git clone <this-repo> eleganza && cd eleganza
 npm run demo
 # 打开 http://127.0.0.1:8787
 ```
 
-演示模式使用生成的节点与历史数据，不发起真实探测，方便先看 UI。演示配置在 `config.demo.json`。
+演示模式使用生成的节点与历史数据，不发起真实探测，方便先看 UI。演示配置在 `config.demo.json`，内置两个账号：
+
+| 账号 | 密码 | 角色 |
+|---|---|---|
+| `admin` | `eleganza` | 管理员 |
+| `visitor` | `visitor123` | 成员 |
+
+演示模式的账号也会显示在登录弹窗里。正式环境不会生成这些默认密码。
 
 ### 2. 正式使用
 
@@ -85,8 +99,8 @@ node server.mjs
 
 ```bash
 # 指定端口 / 地址
-POLARIS_HOST=0.0.0.0 POLARIS_PORT=8080 node server.mjs
-node server.mjs --config /etc/polaris/config.json --port 8787
+ELEGANZA_HOST=0.0.0.0 ELEGANZA_PORT=8080 node server.mjs
+node server.mjs --config /etc/eleganza/config.json --port 8787
 ```
 
 ### 3. Docker
@@ -100,6 +114,11 @@ vim config.json
 sudo chown -R 1000:1000 data
 docker compose up -d --build
 curl http://127.0.0.1:8787/healthz
+
+# 首次创建管理员（二选一）
+docker compose exec eleganza node tools/create-admin.mjs admin
+# 或打开面板，使用容器日志里打印的初始化令牌：
+docker compose logs eleganza | grep -A2 "初始化令牌"
 ```
 
 `docker-compose.yml` 只把端口绑在 `127.0.0.1`，并开启只读根文件系统、`no-new-privileges`、`cap_drop: ALL`。对外请用 Caddy / Nginx 提供 HTTPS。
@@ -107,37 +126,57 @@ curl http://127.0.0.1:8787/healthz
 ### 4. systemd
 
 ```bash
-sudo useradd --system --home /opt/polaris --shell /usr/sbin/nologin polaris
-sudo mkdir -p /opt/polaris
-sudo cp -r server.mjs src public package.json config.json /opt/polaris/
-sudo chown -R polaris:polaris /opt/polaris
-sudo cp deploy/polaris.service /etc/systemd/system/
+sudo useradd --system --home /opt/eleganza --shell /usr/sbin/nologin eleganza
+sudo mkdir -p /opt/eleganza
+sudo cp -r server.mjs src public tools package.json config.json /opt/eleganza/
+sudo chown -R eleganza:eleganza /opt/eleganza
+sudo cp deploy/eleganza.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now polaris
+sudo systemctl enable --now eleganza
+
+# 首次创建管理员（二选一）
+cd /opt/eleganza && sudo -u eleganza node tools/create-admin.mjs admin
+# 或打开面板用 systemctl status 里打印的初始化令牌
 ```
 
-如果 `node` 不在 `/usr/bin/node`，修改 `deploy/polaris.service` 里的 `ExecStart`。
+如果 `node` 不在 `/usr/bin/node`，修改 `deploy/eleganza.service` 里的 `ExecStart`。
 
 ## 配置
 
-顶层只有 `site`、`thresholds`、`auth`、`notifications`、`targets` 和可选的 `dataDir` / `demo`。
+顶层只有 `site`、`accounts`、`thresholds`、`auth`、`notifications`、`targets` 和可选的 `dataDir` / `demo`。
 
 ### site
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `title` | `Polaris` | 页面标题 / API 名称 |
+| `title` | `Eleganza` | 页面标题 / API 名称 |
 | `subtitle` | 全球节点 · 实时探针 | 副标题 |
 | `tagline` | 让每一条线路，都清晰可见。 | 首页主文案 |
 | `description` | 一段说明 | 首页描述 |
 | `footer` | 自建探针面板 | 页脚文字 |
-| `hub` | 上海 | 地球上的“探针中枢”坐标：`{ name, lat, lon }` |
+| `hub` | 探针中枢（上海） | 地球上的“探针中枢”坐标：`{ name, lat, lon }` |
 | `refreshSeconds` | `10` | 节点默认探测间隔（每个节点可单独覆盖） |
-| `public` | `true` | `false` 时 API 需要登录 |
 | `showAddress` | `false` | 是否公开真实地址；默认打码 |
 | `showDetails` | `true` | 是否公开失败原因 |
 | `trustProxy` | `false` | 是否信任 `X-Forwarded-For` / `X-Forwarded-Proto`（反代后设为 true） |
 | `historyDays` | `35` | 历史桶保留天数（30–90） |
+
+> 旧版的 `site.public: false` 仍然兼容，等同于 `accounts.required: true`；新配置建议直接使用 `accounts.required`。
+
+### accounts
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `required` | `false` | `true` 时整个面板的数据和 MCP 都需要登录 |
+| `allowRegistration` | `false` | 是否允许访客自行注册成员账号 |
+| `sessionHours` | `168` | 登录会话有效期（1–8760 小时） |
+| `setupToken` | 空 | 首次初始化管理员的一次性令牌；留空时启动随机生成并打印在终端 |
+
+### auth
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `mcpToken` | 空 | MCP 的 Bearer Token；`accounts.required: true` 时给 AI 客户端使用 |
 
 ### thresholds
 
@@ -208,33 +247,69 @@ sudo systemctl enable --now polaris
 
 > TCP 探针只测 TCP 连通性。Hysteria2 / WireGuard 是 UDP，无法用 TCP 探测；请用 Agent 上报进程状态，再从客户端侧另行验证。
 
-### 私有模式
+### 账号系统
+
+首次启动时还没有任何账号。安全流程是：
+
+1. 启动服务，终端会打印一次性的 **初始化令牌**。
+2. 打开面板 → 右上角账号头像 → 「初始化管理员」→ 填入令牌，设置用户名和密码。
+3. 之后用该账号登录；管理员可以在「用户管理」中创建成员、禁用账号、重置密码或删除账号。
+
+如果不想走网页流程，也可以直接在服务器上创建：
 
 ```bash
-node tools/hash-password.mjs '你的强密码'
+node tools/create-admin.mjs admin
+# 交互输入密码；也可以 --password '...' --display-name '管理员'
+# 重置已有账号密码：
+node tools/create-admin.mjs admin --reset
 ```
 
-把输出的 `site.public: false` 和 `auth.passwordSha256` 写进 `config.json`。建议同时设置一个随机的 `auth.mcpToken`，供 MCP 客户端使用：
+建议在首次初始化完成前不要把面板暴露到公网；也可以把 `accounts.setupToken` 固定成一个随机串，避免每次重启生成新令牌。
+
+把面板设为私有：
 
 ```json
 {
-  "site": { "public": false, "trustProxy": false },
-  "auth": {
-    "passwordSha256": "……",
-    "sessionHours": 12,
-    "mcpToken": "另一个随机串"
-  }
+  "site": { "trustProxy": true },
+  "accounts": {
+    "required": true,
+    "allowRegistration": false,
+    "sessionHours": 168,
+    "setupToken": ""
+  },
+  "auth": { "mcpToken": "另一个随机串" }
 }
 ```
 
-会话 Cookie 使用 HMAC 签名，密钥自动生成在 `data/session-secret`。私有模式下静态资源仍然公开（登录页需要），所有 `/api/*` 与 MCP 数据会校验登录或 Bearer Token。
+账号文件在 `data/accounts.json`，密码使用 scrypt（随机盐）存储，会话令牌只保存 SHA-256 摘要，Cookie 为 `HttpOnly` + `SameSite=Lax`。账号接口有登录限速，修改类接口会校验同源 Origin。
+
+账号能力：
+
+- 管理员：面板数据、账号管理、所有设置
+- 成员：面板数据、个人资料与密码、自己的外观偏好
+- 未登录（`required: false` 时）：只读浏览公开状态；外观偏好保存在浏览器本地
+- 登录后修改的外观偏好会写入账号，换浏览器登录也能恢复
+
+初始化后，建议用管理员账号在「用户管理」中为每位同事创建单独账号，不要共用 `admin`。
+
+### 外观定制
+
+右上角刷新按钮左侧的调色板按钮打开外观面板：
+
+- **主题**：深色 / 浅色；浅色模式下地球卡片仍保留深色星空，作为视觉焦点
+- **强调色**：薄荷、天青、紫罗兰、琥珀、玫瑰、香槟
+- **信息密度**：舒适 / 紧凑
+- **背景光效**：极光、网格与噪点开关
+- **动效与地球旋转**：关闭后减少动画并暂停地球自转
+
+已登录时偏好写入 `data/accounts.json` 并跟随账号；未登录时保存在当前浏览器的 localStorage。地球、曲线、按钮和状态卡会一起响应强调色。
 
 ### 通知
 
 ```json
 {
   "notifications": {
-    "webhookUrl": "https://example.com/hooks/polaris",
+    "webhookUrl": "https://example.com/hooks/eleganza",
     "telegram": { "botToken": "123:ABC", "chatId": "123456789" },
     "notifyOnRecovery": true,
     "timeoutMs": 8000
@@ -252,37 +327,37 @@ Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` �
 
 ```bash
 # 在面板配置里给节点填好 agentKey，然后在目标机上：
-sudo POLARIS_SERVICES="nginx xray" \
-     POLARIS_MOUNTS="/ /var" \
+sudo ELEGANZA_SERVICES="nginx xray" \
+     ELEGANZA_MOUNTS="/ /var" \
      ./agent/install-agent.sh https://status.example.com <AGENT_TOKEN>
 
 # 看日志
-journalctl -u polaris-agent -f
+journalctl -u eleganza-agent -f
 ```
 
 也可以手动运行：
 
 ```bash
-POLARIS_URL=https://status.example.com \
-POLARIS_TOKEN=<AGENT_TOKEN> \
-POLARIS_SERVICES="nginx xray" \
-POLARIS_MOUNTS="/" \
-bash agent/polaris-agent.sh --once
+ELEGANZA_URL=https://status.example.com \
+ELEGANZA_TOKEN=<AGENT_TOKEN> \
+ELEGANZA_SERVICES="nginx xray" \
+ELEGANZA_MOUNTS="/" \
+bash agent/eleganza-agent.sh --once
 
 # 只打印将上报的 JSON（排查用）
-POLARIS_URL=https://... POLARIS_TOKEN=... bash agent/polaris-agent.sh --print
+ELEGANZA_URL=https://... ELEGANZA_TOKEN=... bash agent/eleganza-agent.sh --print
 ```
 
-上报内容：主机名、系统、内核、运行时长、CPU 使用率 / 核心数 / 型号、内存、挂载点使用率、网卡累计流量、负载、systemd / OpenRC 服务状态。间隔由 `POLARIS_INTERVAL` 控制，最小 5 秒。
+上报内容：主机名、系统、内核、运行时长、CPU 使用率 / 核心数 / 型号、内存、挂载点使用率、网卡累计流量、负载、systemd / OpenRC 服务状态。间隔由 `ELEGANZA_INTERVAL` 控制，最小 5 秒。
 
 安装文件：
 
-- `agent/polaris-agent.sh`：脚本本体
-- `agent/polaris-agent.env.example`：环境变量示例（安装后为 `/etc/polaris-agent.env`，权限 600）
-- `agent/polaris-agent.service`：systemd 单元
+- `agent/eleganza-agent.sh`：脚本本体
+- `agent/eleganza-agent.env.example`：环境变量示例（安装后为 `/etc/eleganza-agent.env`，权限 600）
+- `agent/eleganza-agent.service`：systemd 单元
 - `agent/install-agent.sh`：一键安装
 
-Agent 是**只读**的：只读取 `/proc`、`df` 和 `systemctl is-active`，不会修改系统；但 unit 默认以 root 运行（服务状态检查最省事），已加 `ProtectSystem=strict` 等加固。不需要服务检查时可以把 `POLARIS_SERVICES` 留空，并考虑改成非 root 用户。
+Agent 是**只读**的：只读取 `/proc`、`df` 和 `systemctl is-active`，不会修改系统；但 unit 默认以 root 运行（服务状态检查最省事），已加 `ProtectSystem=strict` 等加固。不需要服务检查时可以把 `ELEGANZA_SERVICES` 留空，并考虑改成非 root 用户。
 
 ## REST API
 
@@ -292,8 +367,13 @@ Agent 是**只读**的：只读取 `/proc`、`df` 和 `systemctl is-active`，�
 | GET | `/api/targets/:id?range=1h\|24h\|7d\|30d` | 节点详情与时间序列 |
 | GET | `/api/incidents?limit=20` | 事件列表 |
 | GET | `/api/healthz` | 健康检查（无需登录） |
-| GET | `/api/session` | 当前登录状态 |
-| POST | `/api/login` / `/api/logout` | 私有模式的登录 / 退出 |
+| GET | `/api/auth/status` | 登录状态、是否首次初始化、当前账号 |
+| POST | `/api/auth/setup` | 首次初始化管理员（需要 setup token） |
+| POST | `/api/auth/login` / `/api/auth/logout` | 账号登录 / 退出 |
+| POST | `/api/auth/register` | 自注册（需 `accounts.allowRegistration: true`） |
+| GET / PATCH | `/api/account` | 个人资料、外观偏好、修改密码 |
+| GET / POST | `/api/admin/users` | 管理员查看 / 创建账号 |
+| PATCH / DELETE | `/api/admin/users/:id` | 管理员修改角色、禁用、重置密码、删除 |
 | POST | `/api/agent/report` | Agent 上报（Bearer Token） |
 | GET / POST | `/mcp` | MCP 元信息 / JSON-RPC |
 
@@ -303,12 +383,27 @@ curl -s "https://status.example.com/api/targets/hk-core?range=24h" | jq '.summar
 curl -s "https://status.example.com/api/incidents?limit=10" | jq
 ```
 
-私有模式使用 Cookie 或先登录：
+需要登录时先拿会话 Cookie：
 
 ```bash
-curl -c cookies.txt -X POST https://status.example.com/api/login \
-  -H 'content-type: application/json' -d '{"password":"..."}'
-curl -b cookies.txt https://status.example.com/api/overview | jq
+curl -c cookies.txt -X POST https://status.example.com/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"username":"admin","password":"..."}'
+
+curl -b cookies.txt https://status.example.com/api/overview | jq '.summary'
+
+# 保存外观偏好（登录后）
+curl -b cookies.txt -X PATCH https://status.example.com/api/account \
+  -H 'content-type: application/json' \
+  -d '{"preferences":{"theme":"light","accent":"champagne","density":"compact","effects":true,"motion":true}}'
+```
+
+管理员创建成员：
+
+```bash
+curl -b cookies.txt -X POST https://status.example.com/api/admin/users \
+  -H 'content-type: application/json' \
+  -d '{"username":"ops","password":"a-long-password","displayName":"运维","role":"member"}'
 ```
 
 ### Agent 上报格式
@@ -318,7 +413,7 @@ curl -b cookies.txt https://status.example.com/api/overview | jq
   "hostname": "sg-01",
   "platform": "Debian GNU/Linux 12 (bookworm)",
   "kernel": "6.1.0-28-amd64",
-  "agentVersion": "1.0.0",
+  "agentVersion": "1.1.0",
   "uptimeSeconds": 864000,
   "cpu": { "usage": 37.5, "cores": 4, "model": "AMD EPYC 7B13" },
   "memory": { "total": 8589934592, "used": 3221225472 },
@@ -351,7 +446,7 @@ Cursor：
 ```json
 {
   "mcpServers": {
-    "polaris": {
+    "eleganza": {
       "url": "https://status.example.com/mcp",
       "headers": { "Authorization": "Bearer <MCP_TOKEN>" }
     }
@@ -362,7 +457,7 @@ Cursor：
 Claude Code：
 
 ```bash
-claude mcp add --transport http polaris https://status.example.com/mcp \
+claude mcp add --transport http eleganza https://status.example.com/mcp \
   --header "Authorization: Bearer <MCP_TOKEN>"
 ```
 
@@ -371,7 +466,7 @@ Claude Desktop（需要 `mcp-remote` 转接）：
 ```json
 {
   "mcpServers": {
-    "polaris": {
+    "eleganza": {
       "command": "npx",
       "args": [
         "-y", "mcp-remote",
@@ -409,10 +504,12 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 
 安全建议：
 
-- 不要把面板端口直接暴露公网；先在 TLS 后面，再考虑 `site.public: false`。
-- 密码用 16 位以上随机串；`auth.mcpToken` 单独生成，不要复用。
+- 不要把面板端口直接暴露公网；先在 TLS 后面，再考虑 `accounts.required: true`。
+- 首次初始化完成前不要公网暴露；初始化令牌只在终端打印。
+- 管理员密码用 16 位以上随机串；`auth.mcpToken` 单独生成，不要复用。
+- 每个成员使用独立账号，不共用管理员；离职后禁用或删除账号。
 - 每个 Agent 使用独立 `agentKey`；泄露后只改该节点并 reload。
-- 定期备份 `config.json` 和 `data/`。
+- 定期备份 `config.json` 和 `data/`（`accounts.json` 也在 `data/`）。
 - 面板不代理流量，但仍会暴露节点名称、地区和可用率；`showAddress: false` 会打码地址，但 TLS 证书的 subject 仍可能包含域名。
 
 ## 数据与保留
@@ -420,13 +517,14 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 - 内存是主存储，`data/state.json` 每 20 秒原子快照一次（先写临时文件再 rename），进程退出时也会保存。
 - 每台节点保留最近 35 天的**小时桶**（在线数、检查数、延迟求和、CPU/内存/磁盘、流量增量）和最近 180 个原始采样。
 - 事件最多保留 300 条。
-- 想清空历史：停止服务，删除 `data/state.json`（不要删 `data/session-secret`，否则所有人需要重新登录）。
+- 账号与会话保存在 `data/accounts.json`；密码是 scrypt 哈希，会话只保存摘要。删除它等于清空所有账号，下次启动会重新进入管理员初始化流程。
+- 想清空节点历史：停止服务，删除 `data/state.json`。账号文件不受影响。
 - 演示数据在 `data/demo/`，正式数据在 `data/`，互不影响。
 
 ## 项目结构
 
 ```text
-polaris/
+eleganza/
 ├── server.mjs              # CLI 入口：加载配置、启动探针/演示、监听
 ├── src/
 │   ├── app.mjs             # HTTP 路由：静态页、REST、登录、MCP
@@ -434,14 +532,17 @@ polaris/
 │   ├── store.mjs           # 采样、小时桶、30 天、事件、持久化
 │   ├── probe.mjs           # HTTP / HTTPS / TCP 探针与调度器
 │   ├── demo.mjs            # 确定性演示数据
-│   ├── auth.mjs            # 密码、HMAC 会话、Bearer
+│   ├── accounts.mjs        # 账号、scrypt 密码、会话、权限
 │   ├── mcp.mjs             # MCP tools / resources
 │   ├── notify.mjs          # Webhook / Telegram
 │   └── util.mjs
 ├── public/
 │   ├── index.html          # 单页结构
 │   ├── style.css           # 设计系统与响应式
-│   ├── app.js              # 数据获取、渲染、抽屉、登录
+│   ├── appearance.css      # 主题、外观面板、账号弹窗、用户管理
+│   ├── theme.js            # 外观偏好、强调色、localStorage
+│   ├── theme-boot.js       # 首屏应用主题，避免闪烁
+│   ├── app.js              # 数据获取、渲染、抽屉、账号与外观交互
 │   ├── globe.js            # Canvas 3D 点阵地球
 │   ├── charts.js           # SVG 迷你曲线 + Canvas 时序图
 │   └── globe-land.js       # 由 Natural Earth 110m 生成的点阵（构建产物）
@@ -451,7 +552,7 @@ polaris/
 ├── test/                   # node:test 单元与集成测试
 ├── tools/
 │   ├── build-globe.mjs     # TopoJSON → 点阵位图
-│   ├── hash-password.mjs   # 生成密码哈希
+│   ├── create-admin.mjs    # 创建管理员 / 重置密码
 │   └── screenshot.mjs      # 可选的 CDP 截图工具
 ├── config.demo.json
 ├── config.example.json
@@ -462,7 +563,7 @@ polaris/
 ## 开发
 
 ```bash
-npm test          # 21 个测试：配置、探针、存储、API、MCP、通知
+npm test          # 29 个测试：配置、探针、存储、账号、API、MCP、通知
 npm run demo      # 演示模式
 npm run build:globe
 ```
@@ -476,7 +577,7 @@ npm run build:globe
 ## 常见问题
 
 **Agent 一直显示“待探测”**
-先确认 `config.json` 里的 `agentKey` 与 `/etc/polaris-agent.env` 的 `POLARIS_TOKEN` 完全一致，再 `journalctl -u polaris-agent -f` 看是否 401。Agent 第一次上报前就是待探测状态。
+先确认 `config.json` 里的 `agentKey` 与 `/etc/eleganza-agent.env` 的 `ELEGANZA_TOKEN` 完全一致，再 `journalctl -u eleganza-agent -f` 看是否 401。Agent 第一次上报前就是待探测状态。
 
 **节点在线但 30 天可用率是 0**
 该节点刚加入，还没有跨小时的桶；等一小时或看 1h 曲线。演示模式会预填 30 天数据。
@@ -486,6 +587,18 @@ npm run build:globe
 
 **Hysteria2 / WireGuard 显示离线**
 TCP 探针测不了 UDP。把节点改成 Agent，用 `services` 检查进程，再从客户端侧验证实际连通。
+
+**首次打开没有账号 / 不知道初始化令牌**
+首次启动时终端会打印一次性的初始化令牌；重启会重新生成。也可以不用 UI，直接运行 `node tools/create-admin.mjs admin`。如果令牌丢失，重启服务后看日志。
+
+**忘记管理员密码**
+在服务器上运行 `node tools/create-admin.mjs admin --reset`；如果用户名不是 admin，换成实际用户名。其他成员的密码可以由管理员在「用户管理」里重置。
+
+**登录后外观设置没有跟随账号**
+外观改动会先立即生效，再延迟同步到账号；确认已经登录（右上角头像不是访客图标）。未登录时只保存在当前浏览器 localStorage。
+
+**旧版的访问密码不生效了**
+1.1.0 起改为账号系统，旧的 `auth.passwordSha256` 不再使用。请用 `tools/create-admin.mjs` 创建管理员，或在面板首次初始化。旧密码不会被迁移。
 
 **反向代理后登录刷新又掉线**
 把 `site.trustProxy` 设为 `true`，并确认代理传递了 `X-Forwarded-Proto: https`；否则 Cookie 不会带 `Secure`（或不匹配）。
@@ -497,7 +610,7 @@ TCP 探针测不了 UDP。把节点改成 Agent，用 `services` 检查进程，
 地球只渲染朝向镜头的一面，拖动旋转即可；标签在重叠时会自动隐藏部分，点击节点或卡片仍可查看详情。
 
 **为什么没有用户 / 订阅 / 流量计费**
-这不是代理面板。Polaris 只做观测；需要这些能力请使用 Meridian、3x-ui 或 Marzban。
+这不是代理面板。Eleganza 只做观测；需要这些能力请使用 Meridian、3x-ui 或 Marzban。
 
 ## License
 

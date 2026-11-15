@@ -1,5 +1,14 @@
 import { Globe } from './globe.js';
 import { sparkline, TimeChart } from './charts.js';
+import {
+  ACCENTS,
+  DEFAULT_PREFERENCES,
+  accentColor,
+  applyPreferences,
+  loadPreferences,
+  normalizePreferences,
+  savePreferences,
+} from './theme.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -33,12 +42,37 @@ const state = {
   refreshing: false,
   booted: false,
   lastFocus: null,
+  auth: null,
+  authMode: 'login',
+  authGate: false,
+  prefs: { ...DEFAULT_PREFERENCES },
+  prefSaveTimer: null,
 };
 
 const els = {
   clock: $('#clock'),
   refresh: $('#refresh-button'),
-  logout: $('#logout-button'),
+  appearanceButton: $('#appearance-button'),
+  appearancePopover: $('#appearance-popover'),
+  accountButton: $('#account-button'),
+  accountAvatar: $('#account-avatar'),
+  accountPopover: $('#account-popover'),
+  accountPopoverBody: $('#account-popover-body'),
+  authModal: $('#auth-modal'),
+  authForm: $('#auth-form'),
+  authFields: $('#auth-fields'),
+  authTitle: $('#auth-title'),
+  authSubtitle: $('#auth-subtitle'),
+  authSubmit: $('#auth-submit'),
+  authAlt: $('#auth-alt'),
+  authError: $('#auth-error'),
+  authClose: $('#auth-close'),
+  dialogModal: $('#dialog-modal'),
+  dialogKicker: $('#dialog-kicker'),
+  dialogTitle: $('#dialog-title'),
+  dialogSubtitle: $('#dialog-subtitle'),
+  dialogBody: $('#dialog-body'),
+  prefScope: $('#pref-scope'),
   heroState: $('#hero-state'),
   heroTitle: $('#hero-title'),
   heroDesc: $('#hero-description'),
@@ -80,11 +114,6 @@ const els = {
   drawer: $('#drawer'),
   drawerBackdrop: $('#drawer-backdrop'),
   drawerContent: $('#drawer-content'),
-  loginLayer: $('#login-layer'),
-  loginForm: $('#login-form'),
-  loginPassword: $('#login-password'),
-  loginSubmit: $('#login-submit'),
-  loginError: $('#login-error'),
 };
 
 let globe = null;
@@ -250,7 +279,7 @@ function renderShell(overview) {
   const { site, summary, targets } = overview;
   document.title = `${site.title} — ${site.subtitle}`;
   els.heroDesc.textContent = site.description || '';
-  els.footerText.textContent = site.footer || 'Polaris';
+  els.footerText.textContent = site.footer || 'Eleganza';
   els.footerRefresh.textContent = '每 5 秒同步';
   els.hubName.textContent = site.hub?.name || '探针中枢';
 
@@ -396,7 +425,7 @@ function renderNodes() {
     const target = overview.targets.find((node) => node.id === card.dataset.id);
     if (!target) continue;
     const spark = $('.spark', card);
-    if (spark) spark.innerHTML = sparkline(target.sparkline);
+    if (spark) spark.innerHTML = sparkline(target.sparkline, { accent: accentColor(state.prefs) });
   }
 }
 
@@ -537,7 +566,7 @@ function renderSnippets(overview) {
   const token = '<MCP_TOKEN>';
   els.mcpSnippet.textContent = JSON.stringify({
     mcpServers: {
-      polaris: {
+      eleganza: {
         type: 'http',
         url: `${origin}/mcp`,
         headers: { Authorization: `Bearer ${token}` },
@@ -610,7 +639,7 @@ async function loadDetail(silent = true) {
     state.detail = detail;
     renderDrawer(detail, silent);
   } catch (error) {
-    if (error.loginRequired) return showLogin();
+    if (error.loginRequired) return showAuthGate();
     if (!silent) {
       els.drawerContent.innerHTML = `<div class="drawer-head"><button class="drawer-close" type="button" data-action="close">×</button></div><div class="drawer-body"><p class="incident-empty">加载失败：${escapeHtml(error.message)}</p></div>`;
       bindDrawer();
@@ -772,7 +801,7 @@ function renderDrawer(detail, preserveScroll = true) {
       valueKey: 'latency',
       label: '延迟',
       unit: ' ms',
-      color: '#34e6c6',
+      color: accentColor(state.prefs),
     });
   }
   const metricCanvas = $('#metric-chart', els.drawerContent);
@@ -817,6 +846,7 @@ function setupGlobe() {
   if (!canvas) return;
   globe = new Globe(canvas, {
     hub: { lat: 31.23, lon: 121.47, name: '探针中枢' },
+    accent: accentColor(state.prefs),
     onSelect: (id) => openDrawer(id),
     onCoordChange: (lat, lon) => {
       if (!els.globeCoord) return;
@@ -825,10 +855,12 @@ function setupGlobe() {
       els.globeCoord.innerHTML = `${latLabel}&nbsp;&nbsp;${lonLabel}`;
     },
   });
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    globe.setPaused(true);
-    els.globeToggle.innerHTML = iconPlay();
-  }
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const paused = !state.prefs.motion || reduceMotion;
+  globe.setPaused(paused);
+  els.globeToggle.innerHTML = paused ? iconPlay() : iconPause();
+  els.globeToggle.setAttribute('aria-label', paused ? '继续旋转' : '暂停旋转');
+  els.globeToggle.title = paused ? '继续旋转' : '暂停旋转';
 }
 
 // ------------------------------------------------------------------ polling
@@ -850,7 +882,10 @@ async function refreshOverview() {
     }
     if (state.selectedId) loadDetail(true);
   } catch (error) {
-    if (error.loginRequired) return showLogin();
+    if (error.loginRequired) {
+      stopPolling();
+      return showAuthGate();
+    }
     toast(`刷新失败：${error.message}`);
   } finally {
     state.refreshing = false;
@@ -866,70 +901,665 @@ function startPolling() {
   }, 5000);
 }
 
-// ------------------------------------------------------------------ login
-
-function showLogin() {
-  els.loginLayer.hidden = false;
-  setTimeout(() => els.loginPassword?.focus(), 100);
+function stopPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
 }
 
-async function handleLogin(event) {
+// ------------------------------------------------------------------ appearance
+
+const GUEST_AVATAR = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.5" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.8 19.1c.8-3.1 3.3-4.9 6.2-4.9s5.4 1.8 6.2 4.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+function initials(value) {
+  const text = String(value || '').trim();
+  if (!text) return '?';
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 1) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  if (/[\u3400-\u9fff]/.test(text)) return text.slice(0, 1);
+  return text.slice(0, 2).toUpperCase();
+}
+
+function formatDate(ms) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleString('zh-CN', { hour12: false });
+}
+
+function syncAppearanceControls() {
+  if (!els.appearancePopover) return;
+  const prefs = state.prefs || DEFAULT_PREFERENCES;
+  $$('[data-pref]', els.appearancePopover).forEach((button) => {
+    button.classList.toggle('is-active', String(prefs[button.dataset.pref]) === button.dataset.value);
+  });
+  $$('[data-toggle]', els.appearancePopover).forEach((input) => {
+    input.checked = Boolean(prefs[input.dataset.toggle]);
+  });
+  if (els.prefScope) {
+    els.prefScope.textContent = state.auth?.user ? `保存到 @${state.auth.user.username}` : '偏好保存在本机';
+  }
+}
+
+function setGlobeMotion(enabled) {
+  if (!globe) return;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const paused = !enabled || reduceMotion;
+  globe.setPaused(paused);
+  els.globeToggle.innerHTML = paused ? iconPlay() : iconPause();
+  els.globeToggle.setAttribute('aria-label', paused ? '继续旋转' : '暂停旋转');
+  els.globeToggle.title = paused ? '继续旋转' : '暂停旋转';
+}
+
+function applyAppearance(preferences, { persist = true, forceMotion = false } = {}) {
+  const previousMotion = state.prefs?.motion;
+  const next = normalizePreferences(preferences, state.prefs || DEFAULT_PREFERENCES);
+  state.prefs = next;
+  applyPreferences(next);
+  if (persist) savePreferences(next);
+  syncAppearanceControls();
+  if (globe) {
+    globe.setAccent(accentColor(next));
+    if (forceMotion || previousMotion !== next.motion) setGlobeMotion(next.motion);
+  }
+  if (state.overview) renderNodes();
+  if (state.selectedId) loadDetail(true);
+}
+
+function schedulePreferenceSync() {
+  if (!state.auth?.user) return;
+  clearTimeout(state.prefSaveTimer);
+  state.prefSaveTimer = setTimeout(async () => {
+    try {
+      const result = await api('/api/account', {
+        method: 'PATCH',
+        body: JSON.stringify({ preferences: state.prefs }),
+      });
+      if (result.user) state.auth.user = result.user;
+    } catch (error) {
+      if (error.loginRequired) return showAuthGate();
+      toast(`外观偏好同步失败：${error.message}`);
+    }
+  }, 500);
+}
+
+function setPreference(key, value) {
+  applyAppearance({ ...state.prefs, [key]: value });
+  schedulePreferenceSync();
+}
+
+function closePopovers(except = null) {
+  const pairs = [
+    [els.appearancePopover, els.appearanceButton],
+    [els.accountPopover, els.accountButton],
+  ];
+  for (const [popover, button] of pairs) {
+    if (!popover || popover === except) continue;
+    popover.hidden = true;
+    button?.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function togglePopover(popover, button) {
+  if (!popover) return;
+  const wasOpen = !popover.hidden;
+  closePopovers(popover);
+  popover.hidden = wasOpen;
+  button?.setAttribute('aria-expanded', String(!wasOpen));
+  return !wasOpen;
+}
+
+// ------------------------------------------------------------------ account ui
+
+function updateAccountUI() {
+  const user = state.auth?.user;
+  if (!user) {
+    els.accountAvatar.innerHTML = GUEST_AVATAR;
+    els.accountAvatar.classList.add('guest');
+    els.accountButton.classList.remove('is-authed');
+    els.accountButton.title = '登录 / 账号';
+    els.accountButton.setAttribute('aria-label', '登录或账号设置');
+  } else {
+    els.accountAvatar.textContent = initials(user.displayName || user.username);
+    els.accountAvatar.classList.remove('guest');
+    els.accountButton.classList.add('is-authed');
+    els.accountButton.title = `${user.displayName} · @${user.username}`;
+    els.accountButton.setAttribute('aria-label', `账号：${user.displayName}`);
+  }
+  syncAppearanceControls();
+}
+
+function renderAccountPopover() {
+  const auth = state.auth || { required: false, setupRequired: false, user: null, demoAccounts: [] };
+  const user = auth.user;
+  if (user) {
+    els.accountPopoverBody.innerHTML = `
+      <div class="account-head">
+        <span class="account-avatar">${escapeHtml(initials(user.displayName || user.username))}</span>
+        <div class="account-meta">
+          <strong>${escapeHtml(user.displayName)}</strong>
+          <span>@${escapeHtml(user.username)} · <span class="role-badge">${user.role === 'admin' ? 'ADMIN' : 'MEMBER'}</span></span>
+        </div>
+      </div>
+      <div class="account-actions">
+        <button type="button" data-account-action="settings">账号设置</button>
+        ${user.role === 'admin' ? '<button type="button" data-account-action="admin">用户管理</button>' : ''}
+        <button type="button" data-account-action="logout" class="danger">退出登录</button>
+      </div>`;
+    return;
+  }
+  const demo = auth.demo && auth.demoAccounts?.length
+    ? `<div class="demo-hint">演示账号<br>${auth.demoAccounts.map((account) => `<b>${escapeHtml(account.username)}</b> / ${escapeHtml(account.password)} <span>(${account.role === 'admin' ? '管理员' : '成员'})</span>`).join('<br>')}</div>`
+    : '';
+  const actions = [];
+  actions.push('<button type="button" class="button primary" data-account-action="login">登录</button>');
+  if (auth.allowRegistration) actions.push('<button type="button" class="text-button" data-account-action="register">创建账号</button>');
+  if (auth.setupRequired) actions.push('<button type="button" class="text-button" data-account-action="setup">初始化管理员</button>');
+  els.accountPopoverBody.innerHTML = `
+    <div class="account-head">
+      <span class="account-avatar guest">?</span>
+      <div class="account-meta">
+        <strong>访客</strong>
+        <span>${auth.required ? '此面板需要登录' : '未登录 · 公开浏览'}</span>
+      </div>
+    </div>
+    <p class="account-note">${auth.required ? '账号由管理员创建。' : '登录后可保存外观偏好、管理账号；不影响匿名查看公开状态。'}</p>
+    <div class="account-actions">${actions.join('')}</div>
+    ${demo}`;
+}
+
+async function fetchAuthStatus() {
+  const response = await fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' });
+  if (!response.ok) throw new Error(`无法读取登录状态（${response.status}）`);
+  return response.json();
+}
+
+function authField(name, label, type = 'text', options = {}) {
+  const { placeholder = '', autocomplete = 'off', hint = '' } = options;
+  return `<div class="form-field">
+    <label for="auth-${name}">${label}</label>
+    <input id="auth-${name}" name="${name}" type="${type}" autocomplete="${autocomplete}" placeholder="${escapeHtml(placeholder)}" />
+    ${hint ? `<p class="form-hint">${hint}</p>` : ''}
+  </div>`;
+}
+
+function openAuthModal(mode = 'login', { gate = false } = {}) {
+  const auth = state.auth || {};
+  if (auth.setupRequired && mode === 'login') mode = 'setup';
+  state.authMode = mode;
+  state.authGate = gate || Boolean(auth.required && !auth.user);
+  const titles = {
+    login: ['登录', '使用账号进入 Eleganza。'],
+    setup: ['初始化管理员', '创建第一个管理员账号。'],
+    register: ['创建账号', '注册一个成员账号。'],
+  };
+  els.authTitle.textContent = titles[mode]?.[0] || '登录';
+  els.authSubtitle.textContent = titles[mode]?.[1] || '';
+  const fields = [];
+  if (mode === 'setup') {
+    fields.push(authField('token', '初始化令牌', 'text', {
+      placeholder: '服务器启动日志中的 setup token',
+      hint: '首次启动时面板会在终端打印初始化令牌；也可以运行 <code>node tools/create-admin.mjs</code> 创建账号。',
+    }));
+  }
+  if (mode !== 'login') {
+    fields.push(authField('displayName', '显示名称', 'text', { placeholder: '例如：运营同学' }));
+  }
+  fields.push(authField('username', '用户名', 'text', {
+    autocomplete: 'username',
+    placeholder: '3–32 位字母、数字、点、下划线',
+  }));
+  fields.push(authField('password', '密码', 'password', {
+    autocomplete: mode === 'login' ? 'current-password' : 'new-password',
+    placeholder: '至少 8 位',
+  }));
+  if (mode !== 'login') {
+    fields.push(authField('confirm', '确认密码', 'password', { autocomplete: 'new-password', placeholder: '再输入一次' }));
+  }
+  if (mode === 'login' && state.auth?.demoAccounts?.length) {
+    fields.push(`<div class="demo-hint">演示账号<br>${state.auth.demoAccounts.map((account) => `<b>${escapeHtml(account.username)}</b> / ${escapeHtml(account.password)}`).join('<br>')}</div>`);
+  }
+  els.authFields.innerHTML = fields.join('');
+  els.authError.hidden = true;
+  els.authSubmit.textContent = mode === 'setup' ? '创建并登录' : (mode === 'register' ? '创建账号' : '登录');
+  els.authSubmit.disabled = false;
+  els.authModal.hidden = false;
+  els.authModal.classList.toggle('is-gate', state.authGate);
+  els.authClose.hidden = state.authGate;
+  document.body.classList.add('modal-open');
+
+  const links = [];
+  if (mode === 'login') {
+    if (state.auth?.allowRegistration) links.push(['register', '还没有账号？注册']);
+    if (state.auth?.setupRequired) links.push(['setup', '首次使用？初始化管理员']);
+  } else if (!state.auth?.setupRequired) {
+    links.push(['login', '已有账号？登录']);
+  }
+  els.authAlt.innerHTML = links.map(([nextMode, label]) => `<button type="button" data-auth-mode="${nextMode}">${label}</button>`).join('');
+  setTimeout(() => {
+    const first = els.authFields.querySelector('input');
+    first?.focus({ preventScroll: true });
+  }, 100);
+}
+
+function closeAuthModal(force = false) {
+  if (!force && (state.authGate || (state.auth?.required && !state.auth?.user))) return;
+  els.authModal.hidden = true;
+  els.authModal.classList.remove('is-gate');
+  state.authGate = false;
+  document.body.classList.remove('modal-open');
+}
+
+function showAuthGate() {
+  stopPolling();
+  if (!state.auth) {
+    state.auth = { required: true, setupRequired: false, allowRegistration: false, user: null, demoAccounts: [] };
+  }
+  updateAccountUI();
+  openAuthModal(state.auth.setupRequired ? 'setup' : 'login', { gate: true });
+}
+
+async function submitAuthForm(event) {
   event.preventDefault();
-  els.loginError.hidden = true;
-  els.loginSubmit.disabled = true;
-  els.loginSubmit.textContent = '验证中…';
+  const wasGated = state.authGate;
+  const data = new FormData(els.authForm);
+  const mode = state.authMode;
+  const password = String(data.get('password') || '');
+  const confirm = String(data.get('confirm') || '');
+  if (mode !== 'login' && password !== confirm) {
+    els.authError.textContent = '两次输入的密码不一致';
+    els.authError.hidden = false;
+    return;
+  }
+  if (mode !== 'login' && password.length < 8) {
+    els.authError.textContent = '密码至少需要 8 位';
+    els.authError.hidden = false;
+    return;
+  }
+  const endpoints = {
+    login: '/api/auth/login',
+    setup: '/api/auth/setup',
+    register: '/api/auth/register',
+  };
+  const payload = {
+    username: String(data.get('username') || '').trim(),
+    password,
+    displayName: String(data.get('displayName') || '').trim(),
+    token: String(data.get('token') || '').trim(),
+  };
+  els.authError.hidden = true;
+  els.authSubmit.disabled = true;
+  const original = els.authSubmit.textContent;
+  els.authSubmit.textContent = '请稍候…';
   try {
-    const response = await fetch('/api/login', {
+    const response = await fetch(endpoints[mode], {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password: els.loginPassword.value }),
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
     });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || '登录失败');
-    els.loginLayer.hidden = true;
-    els.loginPassword.value = '';
-    await boot();
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || '操作失败');
+    state.auth = {
+      ...state.auth,
+      user: result.user,
+      setupRequired: false,
+      required: result.required ?? state.auth.required,
+    };
+    state.authGate = false;
+    els.authModal.hidden = true;
+    els.authModal.classList.remove('is-gate');
+    document.body.classList.remove('modal-open');
+    updateAccountUI();
+    if (result.user?.preferences) {
+      applyAppearance(result.user.preferences, { persist: true, forceMotion: true });
+    }
+    toast(`欢迎，${result.user?.displayName || result.user?.username || ''}`);
+    closePopovers();
+    if (!state.booted || wasGated) {
+      state.booted = true;
+      await refreshOverview();
+      startPolling();
+    } else {
+      await refreshOverview();
+    }
   } catch (error) {
-    els.loginError.textContent = error.message;
-    els.loginError.hidden = false;
+    els.authError.textContent = error.message;
+    els.authError.hidden = false;
   } finally {
-    els.loginSubmit.disabled = false;
-    els.loginSubmit.textContent = '解锁面板';
+    els.authSubmit.disabled = false;
+    els.authSubmit.textContent = original;
   }
 }
 
 async function handleLogout() {
+  closePopovers();
   try {
-    await fetch('/api/logout', { method: 'POST' });
-  } finally {
-    location.reload();
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch {
+    // ignore; the cookie is cleared server-side when possible
   }
+  state.auth = { ...(state.auth || {}), user: null };
+  updateAccountUI();
+  if (state.auth.required) {
+    stopPolling();
+    showAuthGate();
+  } else {
+    toast('已退出登录');
+    if (state.booted) refreshOverview();
+  }
+}
+
+// ------------------------------------------------------------------ dialogs
+
+function openDialog({ kicker = 'ACCOUNT', title, subtitle = '', body }) {
+  els.dialogKicker.textContent = kicker;
+  els.dialogTitle.textContent = title;
+  els.dialogSubtitle.textContent = subtitle;
+  els.dialogBody.innerHTML = body;
+  els.dialogModal.hidden = false;
+  document.body.classList.add('modal-open');
+}
+
+function closeDialog() {
+  els.dialogModal.hidden = true;
+  els.dialogBody.innerHTML = '';
+  if (els.authModal.hidden) document.body.classList.remove('modal-open');
+}
+
+function dialogError(container, message) {
+  let box = container.querySelector('.form-error');
+  if (!box) {
+    box = document.createElement('p');
+    box.className = 'form-error';
+    container.prepend(box);
+  }
+  box.textContent = message;
+  box.hidden = false;
+}
+
+function renderAccountSettings() {
+  const user = state.auth?.user;
+  if (!user) return;
+  openDialog({
+    kicker: 'ACCOUNT',
+    title: '账号设置',
+    subtitle: '修改显示名称或密码，外观偏好在右上角调色板中设置。',
+    body: `
+      <div class="dialog-section">
+        <div class="dialog-grid">
+          <div class="info-cell"><span>用户名</span><strong>@${escapeHtml(user.username)}</strong></div>
+          <div class="info-cell"><span>角色</span><strong>${user.role === 'admin' ? '管理员' : '成员'}</strong></div>
+          <div class="info-cell"><span>创建时间</span><strong>${formatDate(user.createdAt)}</strong></div>
+          <div class="info-cell"><span>最近登录</span><strong>${formatDate(user.lastLoginAt)}</strong></div>
+        </div>
+      </div>
+      <div class="dialog-section">
+        <h3>显示名称</h3>
+        <form id="profile-form">
+          <div class="form-field">
+            <label for="profile-display-name">显示名称</label>
+            <input id="profile-display-name" name="displayName" maxlength="40" value="${escapeHtml(user.displayName)}" />
+          </div>
+          <div class="dialog-actions"><button class="button primary" type="submit">保存资料</button></div>
+        </form>
+      </div>
+      <div class="dialog-section">
+        <h3>修改密码</h3>
+        <form id="password-form">
+          <div class="form-field"><label for="current-password">当前密码</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" /></div>
+          <div class="form-field"><label for="new-password">新密码</label><input id="new-password" name="newPassword" type="password" autocomplete="new-password" placeholder="至少 8 位" /></div>
+          <div class="form-field"><label for="confirm-password">确认新密码</label><input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" /></div>
+          <div class="dialog-actions"><button class="button primary" type="submit">更新密码</button></div>
+        </form>
+      </div>`,
+  });
+
+  const profileForm = $('#profile-form', els.dialogBody);
+  profileForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = profileForm.querySelector('button');
+    button.disabled = true;
+    try {
+      const result = await api('/api/account', {
+        method: 'PATCH',
+        body: JSON.stringify({ displayName: new FormData(profileForm).get('displayName') }),
+      });
+      state.auth.user = result.user;
+      updateAccountUI();
+      toast('资料已保存');
+    } catch (error) {
+      dialogError(profileForm, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  const passwordForm = $('#password-form', els.dialogBody);
+  passwordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(passwordForm);
+    if (data.get('newPassword') !== data.get('confirmPassword')) {
+      dialogError(passwordForm, '两次输入的新密码不一致');
+      return;
+    }
+    const button = passwordForm.querySelector('button');
+    button.disabled = true;
+    try {
+      const result = await api('/api/account', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          currentPassword: data.get('currentPassword'),
+          newPassword: data.get('newPassword'),
+        }),
+      });
+      state.auth.user = result.user;
+      updateAccountUI();
+      closeDialog();
+      toast('密码已更新，其他设备已退出登录');
+    } catch (error) {
+      dialogError(passwordForm, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+async function loadAdminUsers() {
+  const data = await api('/api/admin/users');
+  const users = data.users || [];
+  const rows = users.map((user) => {
+    const isSelf = user.id === state.auth?.user?.id;
+    return `<div class="user-row ${user.disabled ? 'is-disabled' : ''}">
+      <span class="account-avatar">${escapeHtml(initials(user.displayName || user.username))}</span>
+      <div class="user-meta">
+        <strong>${escapeHtml(user.displayName)} ${user.role === 'admin' ? '<span class="role-badge">ADMIN</span>' : ''} ${user.disabled ? '<em>已禁用</em>' : ''}</strong>
+        <span>@${escapeHtml(user.username)} · 最近登录 ${formatDate(user.lastLoginAt)}${isSelf ? ' · 当前账号' : ''}</span>
+      </div>
+      <div class="user-actions">
+        <button class="chip-button" type="button" data-user-action="role" data-user-id="${escapeHtml(user.id)}" data-role="${user.role}" ${isSelf ? 'disabled' : ''}>${user.role === 'admin' ? '设为成员' : '设为管理员'}</button>
+        <button class="chip-button" type="button" data-user-action="toggle" data-user-id="${escapeHtml(user.id)}" data-disabled="${user.disabled}" ${isSelf ? 'disabled' : ''}>${user.disabled ? '启用' : '禁用'}</button>
+        <button class="chip-button" type="button" data-user-action="reset" data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" ${isSelf ? 'disabled' : ''}>重置密码</button>
+        <button class="chip-button danger" type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" ${isSelf ? 'disabled' : ''}>删除</button>
+      </div>
+    </div>`;
+  }).join('');
+  els.dialogBody.innerHTML = `
+    <div class="dialog-section">
+      <div class="users-toolbar"><span>${users.length} 个账号</span><span>管理员可创建、禁用或重置账号</span></div>
+      <div class="user-list">${rows || '<div class="admin-empty">还没有账号。</div>'}</div>
+      <form class="add-user" id="add-user-form">
+        <h4>添加账号</h4>
+        <div class="dialog-grid">
+          <div class="form-field"><label for="new-username">用户名</label><input id="new-username" name="username" placeholder="3–32 位" /></div>
+          <div class="form-field"><label for="new-display">显示名称</label><input id="new-display" name="displayName" placeholder="可选" /></div>
+          <div class="form-field"><label for="new-user-password">初始密码</label><input id="new-user-password" name="password" type="password" placeholder="至少 8 位" /></div>
+          <div class="form-field"><label for="new-role">角色</label><select id="new-role" name="role"><option value="member">成员</option><option value="admin">管理员</option></select></div>
+        </div>
+        <button class="button primary" type="submit">创建账号</button>
+      </form>
+    </div>`;
+
+  const addForm = $('#add-user-form', els.dialogBody);
+  addForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(addForm));
+    const button = addForm.querySelector('button[type=submit]');
+    button.disabled = true;
+    try {
+      await api('/api/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+      toast(`已创建 @${payload.username}`);
+      await loadAdminUsers();
+    } catch (error) {
+      dialogError(addForm, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  els.dialogBody.onclick = async (event) => {
+    const button = event.target.closest('[data-user-action]');
+    if (!button) return;
+    const { userAction, userId, username } = button.dataset;
+    if (button.disabled) return;
+    try {
+      if (userAction === 'role') {
+        await api(`/api/admin/users/${encodeURIComponent(userId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ role: button.dataset.role === 'admin' ? 'member' : 'admin' }),
+        });
+      } else if (userAction === 'toggle') {
+        await api(`/api/admin/users/${encodeURIComponent(userId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ disabled: button.dataset.disabled !== 'true' }),
+        });
+      } else if (userAction === 'reset') {
+        const password = window.prompt(`为 @${username} 设置新密码（至少 8 位）`);
+        if (!password) return;
+        if (password.length < 8) return toast('密码至少需要 8 位');
+        await api(`/api/admin/users/${encodeURIComponent(userId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ password }),
+        });
+        toast(`已重置 @${username} 的密码`);
+      } else if (userAction === 'delete') {
+        if (!window.confirm(`确定删除 @${username}？该操作不可撤销。`)) return;
+        await api(`/api/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+        toast(`已删除 @${username}`);
+      }
+      await loadAdminUsers();
+    } catch (error) {
+      if (error.loginRequired) return showAuthGate();
+      toast(error.message);
+    }
+  };
+}
+
+function openAdminUsers() {
+  if (state.auth?.user?.role !== 'admin') return toast('需要管理员权限');
+  openDialog({
+    kicker: 'ADMIN',
+    title: '用户管理',
+    subtitle: '管理 Eleganza 的账号与角色。',
+    body: '<div class="admin-empty">正在读取账号…</div>',
+  });
+  loadAdminUsers().catch((error) => {
+    if (error.loginRequired) return showAuthGate();
+    els.dialogBody.innerHTML = `<p class="form-error">${escapeHtml(error.message)}</p>`;
+  });
 }
 
 // ------------------------------------------------------------------ boot
 
 async function boot() {
-  const session = await fetch('/api/session').then((response) => response.json()).catch(() => ({ required: false, authenticated: true }));
-  els.logout.hidden = !session.required;
-  if (session.required && !session.authenticated) {
-    showLogin();
-    return;
+  try {
+    const auth = await fetchAuthStatus();
+    state.auth = auth;
+    if (auth.user?.preferences) {
+      applyAppearance(auth.user.preferences, { persist: true, forceMotion: true });
+    }
+    updateAccountUI();
+    if (auth.required && !auth.user) {
+      showAuthGate();
+      return;
+    }
+    if (state.booted) return;
+    state.booted = true;
+    await refreshOverview();
+    startPolling();
+  } catch (error) {
+    toast(`初始化失败：${error.message}`);
   }
-  if (state.booted) return;
-  state.booted = true;
-  if (!globe) setupGlobe();
-  await refreshOverview();
-  startPolling();
 }
 
 function init() {
   tickClock();
   setInterval(tickClock, 1000);
+  state.prefs = loadPreferences();
+  applyPreferences(state.prefs);
+  syncAppearanceControls();
   setupGlobe();
 
   els.refresh.addEventListener('click', () => refreshOverview());
-  els.logout.addEventListener('click', handleLogout);
-  els.loginForm.addEventListener('submit', handleLogin);
+
+  els.appearanceButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePopover(els.appearancePopover, els.appearanceButton);
+  });
+
+  els.appearancePopover.addEventListener('click', (event) => {
+    const pref = event.target.closest('[data-pref]');
+    if (pref) {
+      setPreference(pref.dataset.pref, pref.dataset.value);
+      return;
+    }
+    if (event.target.closest('[data-close-popover]')) {
+      closePopovers();
+      return;
+    }
+    if (event.target.closest('#pref-reset')) {
+      applyAppearance(DEFAULT_PREFERENCES, { forceMotion: true });
+      schedulePreferenceSync();
+    }
+  });
+
+  els.appearancePopover.addEventListener('change', (event) => {
+    const toggle = event.target.closest('[data-toggle]');
+    if (toggle) setPreference(toggle.dataset.toggle, toggle.checked);
+  });
+
+  els.accountButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    renderAccountPopover();
+    togglePopover(els.accountPopover, els.accountButton);
+  });
+
+  els.accountPopover.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-account-action]');
+    if (!button) return;
+    const action = button.dataset.accountAction;
+    closePopovers();
+    if (action === 'settings') renderAccountSettings();
+    else if (action === 'admin') openAdminUsers();
+    else if (action === 'logout') await handleLogout();
+    else if (action === 'login' || action === 'register' || action === 'setup') {
+      openAuthModal(action);
+    }
+  });
+
+  els.authForm.addEventListener('submit', submitAuthForm);
+
+  els.authAlt.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-auth-mode]');
+    if (!button) return;
+    openAuthModal(button.dataset.authMode, { gate: state.authGate });
+  });
+
+  els.authModal.addEventListener('click', (event) => {
+    if (event.target.closest('[data-auth-close]')) closeAuthModal();
+  });
+
+  els.dialogModal.addEventListener('click', (event) => {
+    if (event.target.closest('[data-dialog-close]')) closeDialog();
+  });
+
   els.globeToggle.addEventListener('click', () => {
     if (!globe) return;
     const paused = globe.toggle();
@@ -977,9 +1607,22 @@ function init() {
   });
   els.drawerBackdrop.addEventListener('click', closeDrawer);
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.selectedId) closeDrawer();
+    if (event.key !== 'Escape') return;
+    if (!els.authModal.hidden && !state.authGate) {
+      closeAuthModal();
+      return;
+    }
+    if (!els.dialogModal.hidden) {
+      closeDialog();
+      return;
+    }
+    closePopovers();
+    if (state.selectedId) closeDrawer();
   });
   document.addEventListener('click', async (event) => {
+    if (!event.target.closest('.popover') && !event.target.closest('#appearance-button') && !event.target.closest('#account-button')) {
+      closePopovers();
+    }
     const button = event.target.closest('[data-copy-target]');
     if (!button) return;
     const target = document.getElementById(button.dataset.copyTarget);
@@ -997,13 +1640,10 @@ function init() {
     }
   });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.booted) refreshOverview();
+    if (!document.hidden && state.booted && !(state.auth?.required && !state.auth?.user)) refreshOverview();
   });
 
-  boot().catch((error) => {
-    toast(`初始化失败：${error.message}`);
-    els.loginLayer.hidden = true;
-  });
+  boot();
 }
 
 init();

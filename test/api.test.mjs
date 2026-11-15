@@ -6,75 +6,87 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { Store } from '../src/store.mjs';
-import { Auth } from '../src/auth.mjs';
+import { Accounts } from '../src/accounts.mjs';
 import { McpServer } from '../src/mcp.mjs';
-import { createPolarisServer } from '../src/app.mjs';
+import { createEleganzaServer } from '../src/app.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const quiet = { info() {}, warn() {}, error() {} };
 
 async function bootServer(configPayload) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'polaris-api-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'eleganza-api-'));
   const file = path.join(dir, 'config.json');
   await writeFile(file, JSON.stringify(configPayload));
   const config = loadConfig(file);
-  const store = new Store({ config, log: { info() {}, warn() {}, error() {} } });
-  const auth = new Auth({ config, dataDir: config.dataDir, log: { info() {}, warn() {} } });
-  await auth.init();
+  const store = new Store({ config, log: quiet });
+  const accounts = new Accounts({ config, dataDir: config.dataDir, log: quiet });
+  await accounts.init();
   const mcp = new McpServer({ store, config });
-  const server = createPolarisServer({
+  const server = createEleganzaServer({
     config,
     store,
-    auth,
+    accounts,
     mcp,
     publicDir: path.join(root, 'public'),
-    log: { error() {}, info() {}, warn() {} },
+    log: quiet,
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
     base,
     store,
-    close: () => new Promise((resolve) => server.close(resolve)),
+    accounts,
+    close: async () => {
+      await new Promise((resolve) => server.close(resolve));
+      await accounts.close();
+    },
   };
 }
 
 const baseConfig = {
   dataDir: 'data',
-  site: { title: 'Polaris Test', refreshSeconds: 5, public: true, hub: { name: 'Hub', lat: 31, lon: 121 } },
+  site: { title: 'Eleganza Test', refreshSeconds: 5, hub: { name: 'Hub', lat: 31, lon: 121 } },
+  accounts: { required: false, allowRegistration: false, sessionHours: 168, setupToken: 'test-setup-token' },
   targets: [
     { id: 'tcp', name: 'TCP', type: 'tcp', host: '127.0.0.1', port: 1, intervalSeconds: 30, lat: 1, lon: 2 },
     { id: 'agent', name: 'Agent', type: 'agent', agentKey: 'secret-key', intervalSeconds: 30, lat: 3, lon: 4 },
   ],
 };
 
+function cookieFrom(response) {
+  return response.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
+}
+
 test('public API, static assets, agent ingest and MCP', async () => {
-  const server = await bootServer(baseConfig);
+  const server = await bootServer({ ...baseConfig, auth: { mcpToken: 'mcp-secret' } });
   try {
-    const health = await (await fetch(`${server.base}/api/healthz`)).json();
-    assert.equal(health.ok, true);
-    assert.equal(health.nodes, 2);
+    const status = await (await fetch(`${server.base}/api/auth/status`)).json();
+    assert.equal(status.required, false);
+    assert.equal(status.setupRequired, true);
+    assert.equal(status.user, null);
 
     const index = await fetch(`${server.base}/`);
     assert.equal(index.status, 200);
     assert.match(index.headers.get('content-type'), /text\/html/);
-    assert.match(await index.text(), /POLARIS/);
+    const html = await index.text();
+    assert.match(html, /ELEGANZA/);
+    assert.match(html, /appearance-popover/);
     assert.match(index.headers.get('content-security-policy'), /default-src 'self'/);
     assert.equal(index.headers.get('x-frame-options'), 'DENY');
     const etag = index.headers.get('etag');
-    const cached = await fetch(`${server.base}/`, { headers: { 'if-none-match': etag } });
-    assert.equal(cached.status, 304);
+    assert.equal((await fetch(`${server.base}/`, { headers: { 'if-none-match': etag } })).status, 304);
 
     const overviewResponse = await fetch(`${server.base}/api/overview`, { headers: { 'accept-encoding': 'gzip' } });
     assert.equal(overviewResponse.status, 200);
     assert.equal(overviewResponse.headers.get('content-encoding'), 'gzip');
     const overview = await overviewResponse.json();
     assert.equal(overview.summary.total, 2);
-    assert.equal(overview.targets.length, 2);
-    assert.equal(overview.site.title, 'Polaris Test');
+    assert.equal(overview.site.title, 'Eleganza Test');
 
     assert.equal((await fetch(`${server.base}/api/targets/nope`)).status, 404);
     assert.equal((await fetch(`${server.base}/api/nope`)).status, 404);
     assert.equal((await fetch(`${server.base}/../server.mjs`)).status, 404);
+    assert.equal((await fetch(`${server.base}/api/account`)).status, 401);
 
     const unauthorized = await fetch(`${server.base}/api/agent/report`, {
       method: 'POST',
@@ -90,7 +102,7 @@ test('public API, static assets, agent ingest and MCP', async () => {
         hostname: 'test-box',
         platform: 'Ubuntu 24.04',
         kernel: '6.8.0',
-        agentVersion: '1.0.0',
+        agentVersion: '1.1.0',
         uptimeSeconds: 3600,
         cpu: { usage: 42.5, cores: 4 },
         memory: { total: 8 * 1024 ** 3, used: 2 * 1024 ** 3 },
@@ -114,8 +126,7 @@ test('public API, static assets, agent ingest and MCP', async () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }),
     });
     assert.equal(init.status, 200);
-    const initBody = await init.json();
-    assert.equal(initBody.result.serverInfo.name, 'polaris');
+    assert.equal((await init.json()).result.serverInfo.name, 'eleganza');
 
     const tools = await (await fetch(`${server.base}/mcp`, {
       method: 'POST',
@@ -132,9 +143,6 @@ test('public API, static assets, agent ingest and MCP', async () => {
     assert.equal(call.result.isError, false);
     assert.match(call.result.content[0].text, /test-box/);
 
-    const meta = await (await fetch(`${server.base}/mcp`)).json();
-    assert.equal(meta.endpoint, '/mcp');
-
     const notification = await fetch(`${server.base}/mcp`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -146,45 +154,115 @@ test('public API, static assets, agent ingest and MCP', async () => {
   }
 });
 
-test('private mode requires login and supports bearer MCP access', async () => {
+test('account system: setup, login, preferences, admin and access control', async () => {
   const server = await bootServer({
     ...baseConfig,
-    site: { ...baseConfig.site, public: false },
-    auth: { password: 'correct horse battery staple', mcpToken: 'mcp-secret' },
+    site: { ...baseConfig.site, title: 'Private Eleganza' },
+    accounts: { required: true, allowRegistration: false, sessionHours: 168, setupToken: 'test-setup-token' },
+    auth: { mcpToken: 'mcp-secret' },
   });
   try {
     assert.equal((await fetch(`${server.base}/api/overview`)).status, 401);
-    const session = await (await fetch(`${server.base}/api/session`)).json();
-    assert.equal(session.required, true);
-    assert.equal(session.authenticated, false);
+    const status = await (await fetch(`${server.base}/api/auth/status`)).json();
+    assert.equal(status.required, true);
+    assert.equal(status.setupRequired, true);
+    assert.equal(status.user, null);
 
-    const wrong = await fetch(`${server.base}/api/login`, {
+    const wrongSetup = await fetch(`${server.base}/api/auth/setup`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password: 'nope' }),
+      body: JSON.stringify({ token: 'wrong', username: 'admin', password: 'password123' }),
     });
-    assert.equal(wrong.status, 401);
+    assert.equal(wrongSetup.status, 403);
 
-    const login = await fetch(`${server.base}/api/login`, {
+    const setup = await fetch(`${server.base}/api/auth/setup`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ password: 'correct horse battery staple' }),
+      body: JSON.stringify({ token: 'test-setup-token', username: 'admin', password: 'password123', displayName: 'Admin' }),
     });
-    assert.equal(login.status, 200);
-    const cookie = login.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
-    assert.match(cookie, /polaris_session=/);
+    assert.equal(setup.status, 200);
+    const adminCookie = cookieFrom(setup);
+    const adminUser = (await setup.json()).user;
+    assert.equal(adminUser.role, 'admin');
+    assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: adminCookie } })).status, 200);
 
-    const authorized = await fetch(`${server.base}/api/overview`, { headers: { cookie } });
-    assert.equal(authorized.status, 200);
+    assert.equal((await fetch(`${server.base}/api/auth/setup`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'test-setup-token', username: 'other', password: 'password123' }),
+    })).status, 409);
 
-    const tampered = await fetch(`${server.base}/api/overview`, { headers: { cookie: 'polaris_session=1.bad' } });
-    assert.equal(tampered.status, 401);
+    const prefs = await fetch(`${server.base}/api/account`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: JSON.stringify({ preferences: { theme: 'light', accent: 'champagne', density: 'compact', effects: false, motion: false } }),
+    });
+    assert.equal(prefs.status, 200);
+    const prefsBody = await prefs.json();
+    assert.equal(prefsBody.user.preferences.theme, 'light');
+    assert.equal(prefsBody.user.preferences.accent, 'champagne');
+
+    const created = await fetch(`${server.base}/api/admin/users`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: JSON.stringify({ username: 'ops', password: 'ops-password', displayName: 'Ops', role: 'member' }),
+    });
+    assert.equal(created.status, 201);
+    const ops = (await created.json()).user;
+
+    const users = await (await fetch(`${server.base}/api/admin/users`, { headers: { cookie: adminCookie } })).json();
+    assert.equal(users.users.length, 2);
+
+    const opsLogin = await fetch(`${server.base}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'ops', password: 'ops-password' }),
+    });
+    assert.equal(opsLogin.status, 200);
+    const opsCookie = cookieFrom(opsLogin);
+    assert.equal((await fetch(`${server.base}/api/admin/users`, { headers: { cookie: opsCookie } })).status, 403);
+    assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: opsCookie } })).status, 200);
+
+    const disabled = await fetch(`${server.base}/api/admin/users/${ops.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: JSON.stringify({ disabled: true }),
+    });
+    assert.equal(disabled.status, 200);
+    assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: opsCookie } })).status, 401);
+    assert.equal((await fetch(`${server.base}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'ops', password: 'ops-password' }),
+    })).status, 401);
+
+    const selfDemote = await fetch(`${server.base}/api/admin/users/${adminUser.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: JSON.stringify({ role: 'member' }),
+    });
+    assert.equal(selfDemote.status, 409);
+
+    const deleted = await fetch(`${server.base}/api/admin/users/${ops.id}`, {
+      method: 'DELETE',
+      headers: { cookie: adminCookie },
+    });
+    assert.equal(deleted.status, 200);
+
+    // cross-origin writes are rejected
+    assert.equal((await fetch(`${server.base}/api/account`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: adminCookie, origin: 'https://evil.example' },
+      body: JSON.stringify({ displayName: 'x' }),
+    })).status, 403);
+
+    assert.equal((await fetch(`${server.base}/api/auth/logout`, { method: 'POST', headers: { cookie: adminCookie } })).status, 200);
+    assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: adminCookie } })).status, 401);
 
     assert.equal((await fetch(`${server.base}/mcp`)).status, 401);
     assert.equal((await fetch(`${server.base}/mcp`, { headers: { authorization: 'Bearer mcp-secret' } })).status, 200);
     assert.equal((await fetch(`${server.base}/mcp`, { headers: { authorization: 'Bearer nope' } })).status, 401);
 
-    // static assets stay reachable so the login screen can boot
     assert.equal((await fetch(`${server.base}/`)).status, 200);
   } finally {
     await server.close();

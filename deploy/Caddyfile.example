@@ -1,4 +1,4 @@
-# Polaris 反向代理示例：Caddy
+# Eleganza 反向代理示例：Caddy
 # Caddy 会自动申请证书、设置 X-Forwarded-Proto。
 # 使用前把 config.json 的 site.trustProxy 设为 true。
 

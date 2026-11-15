@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test('posts incident webhooks on failure and recovery', async () => {
   received.length = 0;
-  const dir = await mkdtemp(path.join(tmpdir(), 'polaris-notify-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'eleganza-notify-'));
   const file = path.join(dir, 'config.json');
   await writeFile(file, JSON.stringify({
     site: { title: 'Notify Test', public: true },
@@ -56,7 +56,7 @@ test('posts incident webhooks on failure and recovery', async () => {
   assert.equal(received[0].body.event, 'incident.opened');
   assert.equal(received[0].body.node.name, 'Web');
   assert.equal(received[0].body.incident.error, '连接超时');
-  assert.equal(received[0].headers['user-agent'], 'Polaris-Notifier/1.0');
+  assert.equal(received[0].headers['user-agent'], 'Eleganza-Notifier/1.0');
 
   store.recordSample('web', { t: now, ok: true, latencyMs: 18 });
   for (let i = 0; i < 40 && received.length < 2; i += 1) await sleep(50);
@@ -67,7 +67,7 @@ test('posts incident webhooks on failure and recovery', async () => {
 
 test('respects notifyOnRecovery = false', async () => {
   received.length = 0;
-  const dir = await mkdtemp(path.join(tmpdir(), 'polaris-notify-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'eleganza-notify-'));
   const file = path.join(dir, 'config.json');
   await writeFile(file, JSON.stringify({
     site: { title: 'Notify Test', public: true },

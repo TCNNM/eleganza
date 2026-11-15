@@ -6,7 +6,7 @@ import path from 'node:path';
 import { loadConfig } from '../src/config.mjs';
 
 async function writeConfig(payload) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'polaris-config-'));
+  const dir = await mkdtemp(path.join(tmpdir(), 'eleganza-config-'));
   const file = path.join(dir, 'config.json');
   await writeFile(file, JSON.stringify(payload));
   return file;
@@ -25,7 +25,10 @@ test('loadConfig applies defaults and normalises targets', async () => {
   const config = loadConfig(file);
   assert.equal(config.site.title, 'Test');
   assert.equal(config.site.refreshSeconds, 10);
-  assert.equal(config.site.public, true);
+  assert.equal(config.accounts.required, false);
+  assert.equal(config.accounts.sessionHours, 168);
+  assert.equal(config.accounts.allowRegistration, false);
+  assert.equal(config.auth.mcpToken, '');
   assert.equal(config.targets.length, 2);
   const web = config.targets[0];
   assert.equal(web.type, 'https');
@@ -48,6 +51,15 @@ test('loadConfig rejects unknown types and duplicate ids', async () => {
     ],
   });
   assert.throws(() => loadConfig(duplicate), /重复/);
+});
+
+test('accounts.required follows site.public for compatibility', async () => {
+  const legacy = loadConfig(await writeConfig({ site: { public: false }, targets: [] }));
+  assert.equal(legacy.accounts.required, true);
+
+  const explicit = loadConfig(await writeConfig({ accounts: { required: true, allowRegistration: true }, targets: [] }));
+  assert.equal(explicit.accounts.required, true);
+  assert.equal(explicit.accounts.allowRegistration, true);
 });
 
 test('loadConfig requires an agent key outside demo mode', async () => {

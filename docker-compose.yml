@@ -1,8 +1,8 @@
 services:
-  polaris:
+  eleganza:
     build: .
-    image: polaris-probe:latest
-    container_name: polaris
+    image: eleganza:latest
+    container_name: eleganza
     restart: unless-stopped
     ports:
       # 只监听本机，由 Caddy / Nginx 对外提供 HTTPS

@@ -1,7 +1,7 @@
 {
-  "name": "polaris-probe",
-  "version": "1.0.0",
-  "description": "Polaris - a zero-dependency probe panel with a live globe, agent reporting, REST API and MCP.",
+  "name": "eleganza",
+  "version": "1.1.0",
+  "description": "Eleganza - an elegant, zero-dependency probe panel with a live globe, accounts, UI customization, agent reporting, REST API and MCP.",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -13,6 +13,6 @@
     "demo": "node server.mjs --demo",
     "test": "node --test --test-isolation=none",
     "build:globe": "node tools/build-globe.mjs",
-    "hash-password": "node tools/hash-password.mjs"
+    "create-admin": "node tools/create-admin.mjs"
   }
 }

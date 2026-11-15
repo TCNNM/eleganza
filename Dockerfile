@@ -1,8 +1,8 @@
 FROM node:22-alpine
 
 ENV NODE_ENV=production \
-    POLARIS_HOST=0.0.0.0 \
-    POLARIS_PORT=8787 \
+    ELEGANZA_HOST=0.0.0.0 \
+    ELEGANZA_PORT=8787 \
     TZ=Asia/Shanghai
 
 WORKDIR /app
@@ -10,6 +10,7 @@ WORKDIR /app
 COPY package.json server.mjs ./
 COPY src ./src
 COPY public ./public
+COPY tools ./tools
 COPY config.example.json ./
 
 RUN mkdir -p /app/data && chown -R node:node /app

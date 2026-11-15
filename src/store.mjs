@@ -428,10 +428,10 @@ export class Store {
     for (const handler of this.eventHandlers) {
       try {
         Promise.resolve(handler(event, { ...incident }, node)).catch((error) => {
-          this.log.warn?.(`[Polaris] 事件处理失败: ${error.message}`);
+          this.log.warn?.(`[Eleganza] 事件处理失败: ${error.message}`);
         });
       } catch (error) {
-        this.log.warn?.(`[Polaris] 事件处理失败: ${error.message}`);
+        this.log.warn?.(`[Eleganza] 事件处理失败: ${error.message}`);
       }
     }
   }
@@ -667,7 +667,6 @@ export class Store {
         locale: this.site.locale,
         hub: this.site.hub,
         refreshSeconds: this.site.refreshSeconds,
-        public: this.site.public,
         showAddress: this.site.showAddress,
       },
       summary: {

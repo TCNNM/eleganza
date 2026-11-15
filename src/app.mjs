@@ -3,9 +3,10 @@ import path from 'node:path';
 import { readFile, stat } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { parseCookies, readJsonBody, safeEqual } from './util.mjs';
+import { AccountError, SESSION_COOKIE } from './accounts.mjs';
 import { TOOLS } from './mcp.mjs';
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -23,7 +24,7 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
-export function createPolarisServer({ config, store, auth, mcp, publicDir, version = VERSION, log = console }) {
+export function createEleganzaServer({ config, store, accounts, mcp, publicDir, version = VERSION, log = console }) {
   const staticDir = path.resolve(publicDir);
   const loginAttempts = new Map();
   const agentAttempts = new Map();
@@ -83,9 +84,248 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
     return new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   }
 
-  function isReadAuthorized(req) {
-    if (config.site.public !== false) return true;
-    return auth.readSession(parseCookies(req.headers.cookie));
+  function cookieToken(req) {
+    return parseCookies(req.headers.cookie)[SESSION_COOKIE] || '';
+  }
+
+  function currentSession(req) {
+    const token = cookieToken(req);
+    if (!token) return null;
+    const resolved = accounts.resolveSession(token);
+    return resolved ? { ...resolved, token } : null;
+  }
+
+  function currentUser(req) {
+    return currentSession(req)?.user || null;
+  }
+
+  function sessionCookie(token, expiresAt, req) {
+    const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+    return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isSecure(req) ? '; Secure' : ''}`;
+  }
+
+  function clearCookie(req) {
+    return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isSecure(req) ? '; Secure' : ''}`;
+  }
+
+  function hasMcpToken(req) {
+    if (!config.auth.mcpToken) return false;
+    const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+    return Boolean(match && safeEqual(match[1].trim(), config.auth.mcpToken));
+  }
+
+  function readAllowed(req) {
+    return !accounts.required || Boolean(currentUser(req));
+  }
+
+  function sameOrigin(req) {
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    try {
+      return new URL(origin).host === String(req.headers.host || '');
+    } catch {
+      return false;
+    }
+  }
+
+  async function readBody(req, res, limit) {
+    try {
+      return await readJsonBody(req, { limit });
+    } catch (error) {
+      sendJson(req, res, error.statusCode || 400, { error: error.message });
+      return null;
+    }
+  }
+
+  function fail(req, res, error) {
+    if (error instanceof AccountError) {
+      return sendJson(req, res, error.status, { error: error.message });
+    }
+    log.error?.('[Eleganza] 账号操作失败:', error);
+    return sendJson(req, res, 500, { error: '服务器内部错误' });
+  }
+
+  function authContext(req) {
+    return {
+      ip: clientIp(req),
+      userAgent: String(req.headers['user-agent'] || '').slice(0, 200),
+    };
+  }
+
+  async function handleAuthStatus(req, res) {
+    const session = currentSession(req);
+    return sendJson(req, res, 200, {
+      required: accounts.required,
+      setupRequired: accounts.setupRequired,
+      allowRegistration: accounts.allowRegistration,
+      sessionHours: accounts.sessionHours,
+      demo: config.isDemo === true,
+      demoAccounts: accounts.demoCredentials,
+      user: session?.user || null,
+      site: { title: config.site.title, subtitle: config.site.subtitle },
+    });
+  }
+
+  async function handleSetup(req, res) {
+    if (!rateLimit(loginAttempts, `setup|${clientIp(req)}`, 8, 5 * 60 * 1000)) {
+      return sendJson(req, res, 429, { error: '尝试次数过多，请稍后再试' });
+    }
+    const body = await readBody(req, res, 8 * 1024);
+    if (!body) return;
+    try {
+      const result = await accounts.setup({
+        username: body.username,
+        password: body.password,
+        displayName: body.displayName,
+        token: body.token,
+      }, authContext(req));
+      res.setHeader('Set-Cookie', sessionCookie(result.token, result.expiresAt, req));
+      return sendJson(req, res, 200, {
+        user: result.user,
+        expiresAt: result.expiresAt,
+        setupRequired: false,
+        required: accounts.required,
+      });
+    } catch (error) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return fail(req, res, error);
+    }
+  }
+
+  async function handleLogin(req, res) {
+    const body = await readBody(req, res, 8 * 1024);
+    if (!body) return;
+    const username = String(body.username || '').trim();
+    const ip = clientIp(req);
+    if (!rateLimit(loginAttempts, `${ip}|${username.toLowerCase()}`, 10, 5 * 60 * 1000)) {
+      return sendJson(req, res, 429, { error: '尝试次数过多，请稍后再试' });
+    }
+    try {
+      const result = await accounts.login(username, String(body.password || ''), authContext(req));
+      res.setHeader('Set-Cookie', sessionCookie(result.token, result.expiresAt, req));
+      return sendJson(req, res, 200, {
+        user: result.user,
+        expiresAt: result.expiresAt,
+        required: accounts.required,
+        setupRequired: accounts.setupRequired,
+      });
+    } catch (error) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return fail(req, res, error);
+    }
+  }
+
+  async function handleRegister(req, res) {
+    if (!accounts.allowRegistration) {
+      return sendJson(req, res, 403, { error: '当前未开放注册' });
+    }
+    if (!rateLimit(loginAttempts, `register|${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+      return sendJson(req, res, 429, { error: '尝试次数过多，请稍后再试' });
+    }
+    const body = await readBody(req, res, 8 * 1024);
+    if (!body) return;
+    try {
+      const result = await accounts.register({
+        username: body.username,
+        password: body.password,
+        displayName: body.displayName,
+      }, authContext(req));
+      res.setHeader('Set-Cookie', sessionCookie(result.token, result.expiresAt, req));
+      return sendJson(req, res, 200, { user: result.user, expiresAt: result.expiresAt });
+    } catch (error) {
+      return fail(req, res, error);
+    }
+  }
+
+  async function handleLogout(req, res) {
+    const token = cookieToken(req);
+    if (token) {
+      accounts.revokeSession(token);
+      await accounts.save();
+    }
+    res.setHeader('Set-Cookie', clearCookie(req));
+    return sendJson(req, res, 200, { ok: true });
+  }
+
+  async function handleAccount(req, res, user) {
+    if (req.method === 'GET') {
+      return sendJson(req, res, 200, { user });
+    }
+    if (req.method !== 'PATCH') {
+      res.setHeader('Allow', 'GET, PATCH');
+      return sendJson(req, res, 405, { error: 'Method Not Allowed' });
+    }
+    const body = await readBody(req, res, 16 * 1024);
+    if (!body) return;
+    try {
+      if (body.newPassword) {
+        await accounts.changeOwnPassword(user.id, body.currentPassword, body.newPassword);
+        const session = accounts.createSession(accounts.findById(user.id), authContext(req));
+        await accounts.save();
+        res.setHeader('Set-Cookie', sessionCookie(session.token, session.expiresAt, req));
+        return sendJson(req, res, 200, {
+          user: accounts.publicUser(accounts.findById(user.id)),
+          passwordChanged: true,
+        });
+      }
+      const updated = accounts.updateOwnProfile(user.id, {
+        displayName: body.displayName,
+        preferences: body.preferences,
+      });
+      await accounts.save();
+      return sendJson(req, res, 200, { user: updated });
+    } catch (error) {
+      return fail(req, res, error);
+    }
+  }
+
+  async function handleAdminUsers(req, res, user, pathname, method) {
+    if (user.role !== 'admin') return sendJson(req, res, 403, { error: '需要管理员权限' });
+    if (pathname === '/api/admin/users') {
+      if (method === 'GET') {
+        return sendJson(req, res, 200, { users: accounts.listUsers() });
+      }
+      if (method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return sendJson(req, res, 405, { error: 'Method Not Allowed' });
+      }
+      const body = await readBody(req, res, 8 * 1024);
+      if (!body) return;
+      try {
+        const created = await accounts.adminCreateUser(user.id, {
+          username: body.username,
+          password: body.password,
+          displayName: body.displayName,
+          role: body.role,
+        });
+        return sendJson(req, res, 201, { user: created });
+      } catch (error) {
+        return fail(req, res, error);
+      }
+    }
+    const match = /^\/api\/admin\/users\/([a-zA-Z0-9._-]+)$/.exec(pathname);
+    if (!match) return sendJson(req, res, 404, { error: '接口不存在' });
+    const targetId = match[1];
+    if (method === 'PATCH') {
+      const body = await readBody(req, res, 16 * 1024);
+      if (!body) return;
+      try {
+        const updated = await accounts.adminUpdateUser(user.id, targetId, body);
+        return sendJson(req, res, 200, { user: updated });
+      } catch (error) {
+        return fail(req, res, error);
+      }
+    }
+    if (method === 'DELETE') {
+      try {
+        await accounts.adminDeleteUser(user.id, targetId);
+        return sendJson(req, res, 200, { ok: true });
+      } catch (error) {
+        return fail(req, res, error);
+      }
+    }
+    res.setHeader('Allow', 'PATCH, DELETE');
+    return sendJson(req, res, 405, { error: 'Method Not Allowed' });
   }
 
   async function serveStatic(req, res, pathname) {
@@ -126,28 +366,6 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
     else res.end(body);
   }
 
-  async function handleLogin(req, res) {
-    const ip = clientIp(req);
-    if (!rateLimit(loginAttempts, ip, 8, 5 * 60 * 1000)) {
-      return sendJson(req, res, 429, { error: '尝试次数过多，请稍后再试' });
-    }
-    let body;
-    try {
-      body = await readJsonBody(req, { limit: 8 * 1024 });
-    } catch (error) {
-      return sendJson(req, res, error.statusCode || 400, { error: error.message });
-    }
-    if (!auth.required) {
-      return sendJson(req, res, 200, { ok: true, authenticated: true });
-    }
-    if (!auth.verifyPassword(String(body.password || ''))) {
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      return sendJson(req, res, 401, { error: '密码不正确' });
-    }
-    res.setHeader('Set-Cookie', auth.cookieHeader({ secure: isSecure(req) }));
-    return sendJson(req, res, 200, { ok: true, authenticated: true });
-  }
-
   async function handleAgentReport(req, res) {
     const ip = clientIp(req);
     if (!rateLimit(agentAttempts, ip, 240, 60 * 1000)) {
@@ -186,12 +404,13 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
   }
 
   async function handleMcp(req, res) {
+    const authorized = readAllowed(req) || hasMcpToken(req);
+    if (!authorized) {
+      return sendJson(req, res, 401, { error: '需要登录或 Bearer Token' });
+    }
     if (req.method === 'GET') {
-      if (config.site.public === false && !isReadAuthorized(req) && !auth.authorizeBearer(req.headers.authorization)) {
-        return sendJson(req, res, 401, { error: '需要登录或 Bearer Token' });
-      }
       return sendJson(req, res, 200, {
-        name: 'polaris',
+        name: 'eleganza',
         version,
         protocolVersion: '2025-06-18',
         transport: 'streamable-http (POST JSON-RPC)',
@@ -202,9 +421,6 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
       return sendJson(req, res, 405, { error: 'Method Not Allowed' });
-    }
-    if (config.site.public === false && !isReadAuthorized(req) && !auth.authorizeBearer(req.headers.authorization)) {
-      return sendJson(req, res, 401, { error: '需要登录或 Bearer Token' });
     }
     let body;
     try {
@@ -249,26 +465,29 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
         ok: true,
         version,
         demo: config.isDemo === true,
+        accountsRequired: accounts.required,
         uptimeSeconds: Math.floor((Date.now() - store.startedAt) / 1000),
         nodes: store.targets.size,
         time: new Date().toISOString(),
       });
     }
 
-    if (pathname === '/api/session') {
-      const authenticated = isReadAuthorized(req);
-      return sendJson(req, res, 200, {
-        required: config.site.public === false,
-        authenticated,
-        site: { title: config.site.title, subtitle: config.site.subtitle },
-      });
+    if (pathname === '/api/auth/status' && (req.method === 'GET' || req.method === 'HEAD')) {
+      return handleAuthStatus(req, res);
     }
 
-    if (pathname === '/api/login' && req.method === 'POST') return handleLogin(req, res);
+    if (!sameOrigin(req) && req.method !== 'GET' && req.method !== 'HEAD') {
+      return sendJson(req, res, 403, { error: '跨站请求被拒绝' });
+    }
 
-    if (pathname === '/api/logout' && req.method === 'POST') {
-      res.setHeader('Set-Cookie', auth.clearCookieHeader({ secure: isSecure(req) }));
-      return sendJson(req, res, 200, { ok: true });
+    if (pathname === '/api/auth/setup' && req.method === 'POST') return handleSetup(req, res);
+    if (pathname === '/api/auth/login' && req.method === 'POST') return handleLogin(req, res);
+    if (pathname === '/api/auth/register' && req.method === 'POST') return handleRegister(req, res);
+    if (pathname === '/api/auth/logout' && req.method === 'POST') return handleLogout(req, res);
+
+    if (pathname === '/api/auth/setup' || pathname === '/api/auth/login' || pathname === '/api/auth/register') {
+      res.setHeader('Allow', 'POST');
+      return sendJson(req, res, 405, { error: 'Method Not Allowed' });
     }
 
     if (pathname === '/api/agent/report') {
@@ -279,8 +498,20 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
       return handleAgentReport(req, res);
     }
 
+    const user = currentUser(req);
+
+    if (pathname === '/api/account') {
+      if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
+      return handleAccount(req, res, user);
+    }
+
+    if (pathname === '/api/admin/users' || pathname.startsWith('/api/admin/users/')) {
+      if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
+      return handleAdminUsers(req, res, user, pathname, req.method);
+    }
+
     if (pathname.startsWith('/api/')) {
-      if (!isReadAuthorized(req)) {
+      if (!readAllowed(req)) {
         return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -310,11 +541,11 @@ export function createPolarisServer({ config, store, auth, mcp, publicDir, versi
 
   const server = http.createServer((req, res) => {
     route(req, res).catch((error) => {
-      log.error?.('[Polaris] 请求处理失败:', error);
+      log.error?.('[Eleganza] 请求处理失败:', error);
       if (!res.headersSent) sendJson(req, res, 500, { error: '服务器内部错误' });
       else res.end();
     });
   });
-  server.app = { config, store, auth, mcp };
+  server.app = { config, store, accounts, mcp };
   return server;
 }

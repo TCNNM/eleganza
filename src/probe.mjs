@@ -24,7 +24,7 @@ const ERROR_TEXT = {
 
 export function describeError(error, timeoutMs) {
   if (!error) return '探测失败';
-  if (error.code === 'POLARIS_TIMEOUT') return `探测超时（${timeoutMs} ms）`;
+  if (error.code === 'ELEGANZA_TIMEOUT') return `探测超时（${timeoutMs} ms）`;
   if (ERROR_TEXT[error.code]) return ERROR_TEXT[error.code];
   if (error.code && /^ERR_/.test(error.code)) return `${error.code}：${error.message}`.slice(0, 160);
   if (error.code) return `${error.code} ${error.message || ''}`.trim().slice(0, 160);
@@ -33,7 +33,7 @@ export function describeError(error, timeoutMs) {
 
 function timeoutError() {
   const error = new Error('probe timeout');
-  error.code = 'POLARIS_TIMEOUT';
+  error.code = 'ELEGANZA_TIMEOUT';
   return error;
 }
 
@@ -86,7 +86,7 @@ function requestOnce(url, { timeoutMs, allowInsecure, keyword, signal }) {
         path: `${url.pathname || '/'}${url.search || ''}`,
         method: 'GET',
         headers: {
-          'user-agent': 'Polaris-Probe/1.0 (+https://github.com/polaris-probe)',
+          'user-agent': 'Eleganza-Probe/1.0 (+https://github.com/eleganza-probe)',
           accept: '*/*',
           'accept-encoding': 'identity',
           connection: 'close',

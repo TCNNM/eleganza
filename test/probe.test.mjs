@@ -11,12 +11,12 @@ before(async () => {
   server = http.createServer((req, res) => {
     if (req.url === '/ok') {
       res.writeHead(200, { 'content-type': 'text/plain' });
-      res.end('polaris-ok');
+      res.end('eleganza-ok');
       return;
     }
     if (req.url === '/keyword') {
       res.writeHead(200, { 'content-type': 'text/plain' });
-      res.end('hello polaris world');
+      res.end('hello eleganza world');
       return;
     }
     if (req.url === '/redirect') {
@@ -79,7 +79,7 @@ test('HTTP probe enforces expected status codes', async () => {
 });
 
 test('HTTP probe checks keywords', async () => {
-  const ok = await probeHttp(target({ type: 'http', url: `http://127.0.0.1:${port}/keyword`, keyword: 'polaris' }), { timeoutMs: 2000 });
+  const ok = await probeHttp(target({ type: 'http', url: `http://127.0.0.1:${port}/keyword`, keyword: 'eleganza' }), { timeoutMs: 2000 });
   assert.equal(ok.ok, true);
 
   const missing = await probeHttp(target({ type: 'http', url: `http://127.0.0.1:${port}/keyword`, keyword: 'nope' }), { timeoutMs: 2000 });
@@ -118,6 +118,6 @@ test('probeTarget routes by type and describeError localises codes', async () =>
   const result = await probeTarget({ type: 'tcp', host: '127.0.0.1', port, timeoutMs: 2000 }, { timeoutMs: 2000 });
   assert.equal(result.ok, true);
   assert.match(describeError({ code: 'ECONNREFUSED' }), /拒绝/);
-  assert.match(describeError({ code: 'POLARIS_TIMEOUT' }, 3000), /3000/);
+  assert.match(describeError({ code: 'ELEGANZA_TIMEOUT' }, 3000), /3000/);
   assert.equal(describeError(null), '探测失败');
 });

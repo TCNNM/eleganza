@@ -1,6 +1,6 @@
 import { Store } from './store.mjs';
 
-const SERVER_INFO = { name: 'polaris', title: 'Polaris Probe', version: '1.0.0' };
+const SERVER_INFO = { name: 'eleganza', title: 'Eleganza Probe', version: '1.1.0' };
 const PROTOCOL_VERSION = '2025-06-18';
 
 const TOOLS = [
@@ -205,7 +205,7 @@ export class McpServer {
           protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
           serverInfo: SERVER_INFO,
-          instructions: 'Polaris 是自建的服务器探针面板。用 overview 获取整体状态，用 list_nodes / get_node 查看节点，用 list_incidents 查看故障。所有时间均为 UTC ISO 字符串。',
+          instructions: 'Eleganza 是自建的服务器探针面板。用 overview 获取整体状态，用 list_nodes / get_node 查看节点，用 list_incidents 查看故障。所有时间均为 UTC ISO 字符串。',
         };
         break;
       case 'notifications/initialized':
@@ -229,14 +229,14 @@ export class McpServer {
       case 'resources/list':
         result = {
           resources: [
-            { uri: 'polaris://overview', name: 'Network overview', mimeType: 'application/json' },
-            { uri: 'polaris://incidents', name: 'Recent incidents', mimeType: 'application/json' },
+            { uri: 'eleganza://overview', name: 'Network overview', mimeType: 'application/json' },
+            { uri: 'eleganza://incidents', name: 'Recent incidents', mimeType: 'application/json' },
           ],
         };
         break;
       case 'resources/read': {
         const uri = params?.uri;
-        if (uri === 'polaris://overview') {
+        if (uri === 'eleganza://overview') {
           const overview = this.store.overview();
           return {
             jsonrpc: '2.0',
@@ -250,7 +250,7 @@ export class McpServer {
             },
           };
         }
-        if (uri === 'polaris://incidents') {
+        if (uri === 'eleganza://incidents') {
           return {
             jsonrpc: '2.0',
             id,

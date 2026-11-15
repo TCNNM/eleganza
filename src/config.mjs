@@ -11,8 +11,8 @@ export function resolveConfigPath(argv = process.argv.slice(2), env = process.en
   if (flagIndex >= 0 && argv[flagIndex + 1]) return path.resolve(argv[flagIndex + 1]);
   const inline = argv.find((arg) => arg.startsWith('--config='));
   if (inline) return path.resolve(inline.split('=')[1]);
-  if (env.POLARIS_CONFIG) return path.resolve(env.POLARIS_CONFIG);
-  if (argv.includes('--demo') || env.POLARIS_DEMO === '1') {
+  if (env.ELEGANZA_CONFIG) return path.resolve(env.ELEGANZA_CONFIG);
+  if (argv.includes('--demo') || env.ELEGANZA_DEMO === '1') {
     return path.join(PROJECT_ROOT, 'config.demo.json');
   }
   return path.join(PROJECT_ROOT, 'config.json');
@@ -28,11 +28,11 @@ const DEFAULT_THRESHOLDS = {
 };
 
 const DEFAULT_SITE = {
-  title: 'Polaris',
+  title: 'Eleganza',
   subtitle: '全球节点 · 实时探针',
   tagline: '让每一条线路，都清晰可见。',
   description: '从一台中枢出发，持续探测你的每一台服务器，把延迟、可用率、系统负载和证书状态收进同一张地图。',
-  footer: 'Polaris · 自建探针面板',
+  footer: 'Eleganza · 自建探针面板',
   locale: 'zh-CN',
   hub: { name: '探针中枢', lat: 31.2304, lon: 121.4737 },
   refreshSeconds: 10,
@@ -145,9 +145,14 @@ export function loadConfig(file, { demo = false } = {}) {
     seen.add(target.id);
   }
 
+  const accounts = {
+    required: raw.accounts?.required === true || site.public === false,
+    allowRegistration: raw.accounts?.allowRegistration === true,
+    sessionHours: clamp(Number(raw.accounts?.sessionHours || 168), 1, 24 * 365),
+    setupToken: raw.accounts?.setupToken ? String(raw.accounts.setupToken) : '',
+  };
+
   const auth = {
-    passwordSha256: raw.auth?.passwordSha256 || (raw.auth?.password ? sha256(raw.auth.password) : ''),
-    sessionHours: clamp(Number(raw.auth?.sessionHours || 12), 1, 24 * 30),
     mcpToken: raw.auth?.mcpToken || '',
   };
 
@@ -156,9 +161,11 @@ export function loadConfig(file, { demo = false } = {}) {
     isDemo,
     site,
     auth,
+    accounts,
     thresholds,
     targets,
     notifications: raw.notifications || {},
+    legacyPasswordAuth: Boolean(raw.auth?.passwordSha256 || raw.auth?.password),
     dataDir: path.resolve(path.dirname(file), raw.dataDir || 'data'),
   };
 }

@@ -6,6 +6,5 @@ config.json
 .tmp
 node_modules
 test
-tools
 docs
 *.log
