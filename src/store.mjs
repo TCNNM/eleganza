@@ -291,12 +291,14 @@ export class Store {
 
     const hostname = String(report.hostname || previous?.hostname || '').slice(0, 80);
     const sameAgentHost = Boolean(previous?.hostname && hostname && previous.hostname === hostname);
+    const reportLat = report.location?.lat;
+    const reportLon = report.location?.lon;
     const location = {
       city: String(report.location?.city || (sameAgentHost ? previous?.location?.city : '') || '').slice(0, 80),
       region: String(report.location?.region || (sameAgentHost ? previous?.location?.region : '') || '').slice(0, 80),
       country: String(report.location?.country || (sameAgentHost ? previous?.location?.country : '') || '').slice(0, 8),
-      lat: Number.isFinite(Number(report.location?.lat)) ? Number(report.location.lat) : (sameAgentHost ? previous?.location?.lat ?? null : null),
-      lon: Number.isFinite(Number(report.location?.lon)) ? Number(report.location.lon) : (sameAgentHost ? previous?.location?.lon ?? null : null),
+      lat: reportLat != null && Number.isFinite(Number(reportLat)) ? Number(reportLat) : (sameAgentHost ? previous?.location?.lat ?? null : null),
+      lon: reportLon != null && Number.isFinite(Number(reportLon)) ? Number(reportLon) : (sameAgentHost ? previous?.location?.lon ?? null : null),
     };
     const agent = {
       hostname,
@@ -594,11 +596,15 @@ export class Store {
       }
       : null;
     const day30 = this.availability(state, now - 30 * DAY, now);
-    const autoLocation = Number.isFinite(Number(state.agent?.location?.lat))
-      ? state.agent.location
-      : state.geo;
-    const latitude = Number.isFinite(Number(autoLocation?.lat)) ? Number(autoLocation.lat) : target.lat;
-    const longitude = Number.isFinite(Number(autoLocation?.lon)) ? Number(autoLocation.lon) : target.lon;
+    const autoLocation = [state.agent?.location, state.geo].find((candidate) => (
+      candidate
+      && candidate.lat != null
+      && candidate.lon != null
+      && Number.isFinite(Number(candidate.lat))
+      && Number.isFinite(Number(candidate.lon))
+    )) || null;
+    const latitude = autoLocation ? Number(autoLocation.lat) : target.lat;
+    const longitude = autoLocation ? Number(autoLocation.lon) : target.lon;
     const rawHost = target.type === 'agent' ? (state.agent?.hostname || 'agent 推送') : target.host;
     const displayHost = this.site.showAddress ? rawHost : maskHost(rawHost);
     const endpoint = target.type === 'agent'
