@@ -190,6 +190,21 @@ test('account system: setup, login, preferences, admin and access control', asyn
     assert.equal((await fetch(`${server.base}/api/admin/users`, { headers: { cookie: opsCookie } })).status, 403);
     assert.equal((await fetch(`${server.base}/api/overview`, { headers: { cookie: opsCookie } })).status, 200);
 
+    const renamed = await fetch(`${server.base}/api/admin/targets/tcp`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: adminCookie },
+      body: JSON.stringify({ name: 'Renamed TCP' }),
+    });
+    assert.equal(renamed.status, 200);
+    assert.equal((await renamed.json()).target.name, 'Renamed TCP');
+    const renamedOverview = await (await fetch(`${server.base}/api/overview`, { headers: { cookie: opsCookie } })).json();
+    assert.equal(renamedOverview.targets.find((target) => target.id === 'tcp').name, 'Renamed TCP');
+    assert.equal((await fetch(`${server.base}/api/admin/targets/tcp`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: opsCookie },
+      body: JSON.stringify({ name: 'Nope' }),
+    })).status, 403);
+
     const disabled = await fetch(`${server.base}/api/admin/users/${ops.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', cookie: adminCookie },

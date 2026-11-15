@@ -8,7 +8,7 @@ services:
       # 只监听本机，由 Caddy / Nginx 对外提供 HTTPS
       - "127.0.0.1:8787:8787"
     volumes:
-      - ./config.json:/app/config.json:ro
+      - ./config.json:/app/config.json
       - ./data:/app/data
     environment:
       TZ: Asia/Shanghai

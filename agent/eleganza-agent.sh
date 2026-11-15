@@ -66,6 +66,57 @@ json_escape() {
   printf '%s' "$s"
 }
 
+http_get() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS --max-time 6 "$url" 2>/dev/null
+    return
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -qO- --timeout=6 "$url" 2>/dev/null
+    return
+  fi
+}
+
+PUBLIC_IP=""
+GEO_CITY=""
+GEO_REGION=""
+GEO_COUNTRY=""
+GEO_LAT=""
+GEO_LON=""
+GEO_AT=0
+
+collect_public_identity() {
+  local now geo loc
+  now="$(date +%s)"
+  if [ "$GEO_AT" -gt 0 ] && [ $((now - GEO_AT)) -lt 21600 ]; then
+    return
+  fi
+  GEO_AT="$now"
+
+  PUBLIC_IP="$(http_get https://api.ipify.org | tr -d '\r\n' | head -c 64)"
+  if [ -z "$PUBLIC_IP" ]; then
+    PUBLIC_IP="$(http_get https://api64.ipify.org | tr -d '\r\n' | head -c 64)"
+  fi
+  if [ -z "$PUBLIC_IP" ]; then
+    GEO_AT=$((now - 21600 + 600))
+    return
+  fi
+
+  geo="$(http_get "https://ipinfo.io/${PUBLIC_IP}/json")"
+  [ -n "$geo" ] || return
+  GEO_CITY="$(printf '%s' "$geo" | sed -n 's/.*"city"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  GEO_REGION="$(printf '%s' "$geo" | sed -n 's/.*"region"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  GEO_COUNTRY="$(printf '%s' "$geo" | sed -n 's/.*"country"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  loc="$(printf '%s' "$geo" | sed -n 's/.*"loc"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  if [ -n "$loc" ]; then
+    GEO_LAT="${loc%%,*}"
+    GEO_LON="${loc#*,}"
+    case "$GEO_LAT" in ''|*[!0-9.-]*) GEO_LAT="" ;; esac
+    case "$GEO_LON" in ''|*[!0-9.-]*) GEO_LON="" ;; esac
+  fi
+}
+
 read_cpu_snapshot() {
   awk '/^cpu /{print $2, $3, $4, $5, $6, $7, $8}' /proc/stat 2>/dev/null
 }
@@ -126,7 +177,7 @@ collect_services() {
 build_payload() {
   local host platform kernel uptime load cores cpu_model cpu_usage
   local load1 load5 load15 mem_total_kb mem_avail_kb mem_used disks services rx tx net_line
-  local payload
+  local public_ip location_json payload
 
   host="${ELEGANZA_NODE_NAME:-$(hostname 2>/dev/null || echo unknown)}"
   kernel="$(uname -r 2>/dev/null || echo unknown)"
@@ -162,13 +213,16 @@ build_payload() {
 
   disks="$(collect_disks)"
   services="$(collect_services)"
+  collect_public_identity
+  public_ip="$PUBLIC_IP"
+  location_json="{\"city\":\"$(json_escape "$GEO_CITY")\",\"region\":\"$(json_escape "$GEO_REGION")\",\"country\":\"$(json_escape "$GEO_COUNTRY")\",\"lat\":${GEO_LAT:-null},\"lon\":${GEO_LON:-null}}"
 
   net_line="$(awk -F'[: ]+' 'NR>2 && $1!="lo" {rx+=$2; tx+=$10} END{printf "%d %d", rx+0, tx+0}' /proc/net/dev 2>/dev/null || echo "0 0")"
   set -- $net_line
   rx="${1:-0}"; tx="${2:-0}"
 
   payload="$(cat <<EOF
-{"hostname":"$(json_escape "$host")","platform":"$(json_escape "$platform")","kernel":"$(json_escape "$kernel")","agentVersion":"$VERSION","uptimeSeconds":$uptime,"cpu":{"usage":$cpu_usage,"cores":$cores,"model":"$(json_escape "$cpu_model")"},"memory":{"total":$((mem_total_kb * 1024)),"used":$mem_used},"disks":[$disks],"net":{"rxBytes":$rx,"txBytes":$tx},"load":[$load1,$load5,$load15],"services":[$services]}
+{"hostname":"$(json_escape "$host")","platform":"$(json_escape "$platform")","kernel":"$(json_escape "$kernel")","agentVersion":"$VERSION","publicIp":"$(json_escape "$public_ip")","location":$location_json,"uptimeSeconds":$uptime,"cpu":{"usage":$cpu_usage,"cores":$cores,"model":"$(json_escape "$cpu_model")"},"memory":{"total":$((mem_total_kb * 1024)),"used":$mem_used},"disks":[$disks],"net":{"rxBytes":$rx,"txBytes":$tx},"load":[$load1,$load5,$load15],"services":[$services]}
 EOF
 )"
   printf '%s' "$payload"

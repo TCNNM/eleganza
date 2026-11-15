@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#05070d" />
-  <meta name="description" content="Eleganza — 全球节点实时探针：延迟、可用率、系统负载与证书状态，一屏尽览。" />
-  <title>Eleganza — 全球节点 · 实时探针</title>
+  <meta name="description" content="Eleganza — 全球服务器实时探针：延迟、可用率、系统负载与证书状态，一屏尽览。" />
+  <title>Eleganza — 全球服务器 · 实时探针</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <script src="/theme-boot.js"></script>
   <link rel="stylesheet" href="/style.css" />
@@ -47,7 +47,7 @@
 
     <nav class="topnav" aria-label="主导航">
       <a href="#overview" class="is-active">总览</a>
-      <a href="#nodes">节点</a>
+      <a href="#nodes">服务器</a>
       <a href="#incidents">事件</a>
       <a href="#about">关于</a>
     </nav>
@@ -166,7 +166,7 @@
         </p>
         <div class="hero-actions">
           <a class="button primary" href="#nodes">
-            <span>查看全部节点</span>
+            <span>查看全部服务器</span>
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11M11 5.5 15.5 10 11 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
           <button class="button ghost" id="probe-command-button" type="button">
@@ -185,7 +185,7 @@
             <dd id="hero-latency">—</dd>
           </div>
           <div>
-            <dt>在线节点</dt>
+            <dt>在线服务器</dt>
             <dd id="hero-nodes">—</dd>
           </div>
           <div>
@@ -204,7 +204,7 @@
           </button>
         </div>
         <div class="globe-stage">
-          <canvas id="globe" aria-label="全球节点分布图"></canvas>
+          <canvas id="globe" aria-label="全球服务器分布图"></canvas>
           <div class="globe-tooltip" id="globe-tooltip" role="status" hidden></div>
           <div class="globe-badge">
             <span class="globe-badge-label">探针中枢</span>
@@ -215,7 +215,7 @@
           <span class="legend"><i class="dot online"></i><b id="legend-online">0</b> 在线</span>
           <span class="legend"><i class="dot warning"></i><b id="legend-warning">0</b> 注意</span>
           <span class="legend"><i class="dot offline"></i><b id="legend-offline">0</b> 离线</span>
-          <span class="globe-hint">拖动旋转 · 点击节点</span>
+          <span class="globe-hint">拖动旋转 · 点击服务器</span>
         </div>
       </div>
     </section>
@@ -225,7 +225,7 @@
     <section class="kpis" aria-label="关键指标">
       <article class="kpi-card">
         <div class="kpi-top">
-          <span class="kpi-label">节点总数</span>
+          <span class="kpi-label">服务器总数</span>
           <span class="kpi-icon">
             <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="4" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="13" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
           </span>
@@ -237,7 +237,7 @@
 
       <article class="kpi-card">
         <div class="kpi-top">
-          <span class="kpi-label">在线节点</span>
+          <span class="kpi-label">在线服务器</span>
           <span class="kpi-icon ok">
             <svg viewBox="0 0 24 24" fill="none"><path d="M4 17V9m5 8V5m5 12v-6m5 6V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
@@ -255,7 +255,7 @@
           </span>
         </div>
         <div class="kpi-value"><span id="kpi-latency">—</span><em>ms</em></div>
-        <div class="kpi-foot" id="kpi-latency-foot">全部节点均值</div>
+        <div class="kpi-foot" id="kpi-latency-foot">全部服务器均值</div>
         <div class="kpi-bars" id="kpi-latency-bars"></div>
       </article>
 
@@ -284,7 +284,7 @@
         <div class="section-title">
           <span class="section-index">01</span>
           <div>
-            <h2>节点状态</h2>
+            <h2>服务器状态</h2>
             <p>实时探测结果与最近 30 天可用率</p>
           </div>
         </div>
@@ -292,14 +292,14 @@
           <div class="filters" id="filters" role="tablist" aria-label="按状态筛选"></div>
           <label class="search-box">
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="5.2" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <input id="node-search" type="search" placeholder="搜索节点 / 地区" autocomplete="off" />
+            <input id="node-search" type="search" placeholder="搜索服务器 / 地区" autocomplete="off" />
           </label>
         </div>
       </div>
       <div class="node-grid" id="node-grid" aria-live="polite"></div>
       <div class="empty-state" id="node-empty" hidden>
         <span class="empty-icon">⌁</span>
-        <strong>没有匹配的节点</strong>
+        <strong>没有匹配的服务器</strong>
         <p>换一个关键词，或切换到「全部」。</p>
       </div>
       <div class="section-note" id="nodes-note"></div>
@@ -327,7 +327,7 @@
         </header>
         <p class="panel-desc">一块只读的观测面板：数据留在服务端，当前页面负责呈现。</p>
         <div class="meta-rows">
-          <div class="meta-row"><span>节点数量</span><b id="info-nodes">—</b></div>
+          <div class="meta-row"><span>服务器数量</span><b id="info-nodes">—</b></div>
           <div class="meta-row"><span>30 天检查次数</span><b id="info-checks">—</b></div>
           <div class="meta-row"><span>时间范围</span><b id="info-history">—</b></div>
           <div class="meta-row"><span>当前账号</span><b id="info-user">—</b></div>
@@ -360,7 +360,7 @@
       <span id="footer-text">Eleganza · 自建探针面板</span>
     </div>
     <div class="footer-side">
-      <span id="footer-refresh">每 5 秒同步</span>
+      <span id="footer-refresh">每 60 秒同步</span>
       <span class="footer-sep">·</span>
       <a href="#about">关于</a>
       <span class="footer-sep">·</span>
@@ -369,7 +369,7 @@
   </footer>
 
   <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
-  <aside class="drawer" id="drawer" aria-label="节点详情" aria-hidden="true" hidden>
+  <aside class="drawer" id="drawer" aria-label="服务器详情" aria-hidden="true" hidden>
     <div class="drawer-scroll" id="drawer-content"></div>
   </aside>
 

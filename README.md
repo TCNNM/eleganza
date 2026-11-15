@@ -68,12 +68,14 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 
 - **实时地球**：纯 Canvas 绘制的 3D 点阵地球，节点脉冲、中枢弧线、鼠标拖动旋转、点击节点打开详情。
 - **两种探针**：服务端主动探测 HTTP / HTTPS / TCP，支持状态码白名单、关键字、TLS 证书天数；资源类指标由 Agent 反向推送。
-- **探针指令**：首页「探针指令」按钮根据 `site.publicUrl` 生成当前站点的 Agent 快捷安装命令，支持一键复制。
+- **探针指令**：首页「探针指令」按钮根据 `site.publicUrl` 生成首次安装和 `FORCE=1` 覆盖安装两条命令，支持一键复制。
+- **自动定位**：Agent 自动采集公网 IP 与 IP 位置（ipinfo.io，6 小时缓存），连同 CPU、内存、磁盘、负载一起展示。
+- **服务器状态**：自动刷新间隔为 60 秒；示例节点默认不写入正式配置。
 - **30 天可用率**：按小时聚合的长期桶，按天着色；另有 1h / 24h / 7d / 30d 延迟曲线。
-- **详情抽屉**：延迟趋势、区间可用率、TLS 证书、系统负载、服务状态、历史事件、节点元信息。
+- **详情抽屉**：延迟趋势、区间可用率、TLS 证书、系统负载、公网 IP、IP 位置、服务状态、历史事件、服务器元信息。
 - **事件时间线**：连续失败达到阈值后自动开事件，恢复后自动闭环，并记录持续时长。
 - **通知**：故障 / 恢复可推送通用 Webhook 或 Telegram。
-- **账号系统**：首次启动初始化管理员，支持管理员 / 成员、登录会话、创建与禁用账号、重置密码；可选开放注册。
+- **账号系统**：首次启动初始化管理员，支持管理员 / 成员、登录会话、创建与禁用账号、重置密码；管理员可在服务器详情中修改显示名称；可选开放注册。
 - **整体风格**：右上角调色板切换「深空 / 纸境 / 终端 / 鎏金」四套完整视觉风格，连带字体、卡片形状、背景、弹窗和详情抽屉一起变化；另有 7 种强调色、密度、光效与动效。
 - **无对外接口**：不提供 REST API / MCP，面板只通过同源页面读取数据；Agent 上报使用独立 agentKey。
 - **能屈能伸**：`npm run demo` 直接看演示；正式环境一个 `config.json` + 一条 `node server.mjs` 即可。
@@ -231,8 +233,8 @@ mkdir -p data
 cp config.example.json config.json
 vim config.json
 
-# 镜像内以 node 用户（UID 1000）运行，data 目录需要可写
-sudo chown -R 1000:1000 data
+# 镜像内以 node 用户（UID 1000）运行；data 和管理员重命名所需的 config.json 需要可写
+sudo chown -R 1000:1000 data config.json
 docker compose up -d --build
 curl http://127.0.0.1:8787/healthz
 
@@ -478,6 +480,19 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
 
 脚本会自动下载 Agent 和 systemd 单元，写入 `/etc/eleganza-agent.env`，然后启动 `eleganza-agent`。
 
+### 覆盖安装
+
+修复旧 Token、旧面板地址或旧脚本时使用 `FORCE=1`，会重写 `/etc/eleganza-agent.env`：
+
+```bash
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
+  | sudo env FORCE=1 ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
+      ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \
+    bash -s -- https://status.example.com
+```
+
 如果更谨慎，先下载再检查，最后执行：
 
 ```bash
@@ -521,7 +536,7 @@ ELEGANZA_URL=https://status.example.com ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
   bash agent/eleganza-agent.sh --print
 ```
 
-上报内容：主机名、系统、内核、运行时长、CPU 使用率 / 核心数 / 型号、内存、挂载点使用率、网卡累计流量、负载、systemd / OpenRC 服务状态。间隔由 `ELEGANZA_INTERVAL` 控制，最小 5 秒。
+上报内容：主机名、系统、内核、运行时长、CPU 使用率 / 核心数 / 型号、内存、挂载点使用率、网卡累计流量、负载、systemd / OpenRC 服务状态，以及公网 IP 和 IP 位置。IP 位置来自 `ipinfo.io`，每 6 小时刷新一次；失败时只上报公网 IP。间隔由 `ELEGANZA_INTERVAL` 控制，最小 5 秒。
 
 安装文件：
 

@@ -144,6 +144,23 @@ function formatNumber(value) {
   return Number(value).toLocaleString('en-US');
 }
 
+function maskAddress(value) {
+  const text = String(value || '');
+  if (!text) return '—';
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(text)) {
+    return text.replace(/\.\d+$/, '.x');
+  }
+  if (text.includes(':')) {
+    return `${text.split(':').slice(0, 3).join(':')}::x`;
+  }
+  return '已隐藏';
+}
+
+function agentLocationText(location) {
+  if (!location) return '—';
+  return [location.city, location.region, location.country].filter(Boolean).join(' · ') || '—';
+}
+
 async function copyText(text) {
   try {
     if (navigator.clipboard?.writeText) {
@@ -307,13 +324,13 @@ function renderShell(overview) {
   document.title = `${site.title} — ${site.subtitle}`;
   els.heroDesc.textContent = site.description || '';
   els.footerText.textContent = site.footer || 'Eleganza';
-  els.footerRefresh.textContent = '每 5 秒同步';
+  els.footerRefresh.textContent = '每 60 秒同步';
   els.hubName.textContent = site.hub?.name || '探针中枢';
 
   const stateText = {
     operational: '系统运行正常',
-    degraded: '部分节点需注意',
-    critical: '存在离线节点',
+    degraded: '部分服务器需注意',
+    critical: '存在离线服务器',
     pending: '等待首批数据',
   }[summary.overall] || '正在探测';
   els.heroState.textContent = stateText;
@@ -353,23 +370,23 @@ function renderBanner(overview) {
   els.banner.classList.toggle('is-warning', !offline.length);
   if (offline.length) {
     const first = offline[0];
-    const more = offline.length > 1 ? `，另有 ${offline.length - 1} 个节点离线` : '';
+    const more = offline.length > 1 ? `，另有 ${offline.length - 1} 台服务器离线` : '';
     els.banner.innerHTML = `
       <span class="banner-icon">${iconAlert()}</span>
       <div class="banner-copy">
         <strong>${escapeHtml(first.name)} 当前无法连通</strong>
         <span>${escapeHtml(first.error || '探测失败')} · 已持续 ${formatDuration(Date.now() - (first.since || Date.now()))}${more}</span>
       </div>
-      <button class="banner-action" type="button" data-filter="offline">查看离线节点</button>`;
+      <button class="banner-action" type="button" data-filter="offline">查看离线服务器</button>`;
   } else {
     const reasons = [...new Set(warnings.flatMap((target) => target.reasons))].join('、');
     els.banner.innerHTML = `
       <span class="banner-icon">${iconAlert()}</span>
       <div class="banner-copy">
-        <strong>${warnings.length} 个节点处于注意状态</strong>
+        <strong>${warnings.length} 台服务器处于注意状态</strong>
         <span>${escapeHtml(reasons || '指标接近阈值')} · 服务仍在正常响应</span>
       </div>
-      <button class="banner-action" type="button" data-filter="warning">查看相关节点</button>`;
+      <button class="banner-action" type="button" data-filter="warning">查看相关服务器</button>`;
   }
 }
 
@@ -382,7 +399,7 @@ function renderKpis(overview) {
   els.kpiTotal2.textContent = summary.total;
   els.kpiOnlineFoot.textContent = summary.offline
     ? `${summary.offline} 个离线 · ${summary.warning} 个注意`
-    : (summary.warning ? `${summary.warning} 个节点需要注意` : '全部节点运行正常');
+    : (summary.warning ? `${summary.warning} 台服务器需要注意` : '全部服务器运行正常');
   const onlineRatio = summary.total ? (summary.online / summary.total) * 100 : 0;
   els.kpiOnlineBar.style.width = `${Math.min(100, onlineRatio)}%`;
   els.kpiLatency.textContent = summary.avgLatency == null ? '—' : formatLatency(summary.avgLatency);
@@ -445,8 +462,8 @@ function renderNodes() {
   els.grid.innerHTML = nodes.map(nodeCard).join('');
   els.empty.hidden = nodes.length > 0;
   els.nodesNote.textContent = overview.targets.length
-    ? `共 ${overview.targets.length} 个节点 · 最后探测 ${formatRelative(overview.summary.lastUpdated)} · 每 5 秒同步`
-    : '还没有配置节点，编辑 config.json 后重启即可。';
+    ? `共 ${overview.targets.length} 台服务器 · 最后探测 ${formatRelative(overview.summary.lastUpdated)} · 每 60 秒同步`
+    : '还没有配置服务器，编辑 config.json 后重启即可。';
 
   for (const card of $$('.node-card', els.grid)) {
     const target = overview.targets.find((node) => node.id === card.dataset.id);
@@ -462,10 +479,11 @@ function nodeCard(target) {
   const availability = target.availability30d;
   const third = thirdStat(target);
   const reasonText = status === 'offline'
-    ? (target.error || '节点当前不可达')
+    ? (target.error || '服务器当前不可达')
     : (target.reasons || []).join('、');
   const typeLabel = TYPE_LABEL[target.type] || target.type;
-  const metaParts = [target.city || target.group || '未知地区', typeLabel, ...(target.tags || []).slice(0, 1)];
+  const autoPlace = target.agent?.location?.city || target.agent?.location?.country;
+  const metaParts = [autoPlace || target.city || target.group || '未知地区', typeLabel, ...(target.tags || []).slice(0, 1)];
   const daily = (target.daily || []).map((day) => {
     const label = `${day.date} · ${day.availability == null ? '无数据' : `${day.availability}%`}${day.total ? ` · ${formatNumber(day.total)} 次检查` : ''}`;
     return `<i class="${day.level}" title="${escapeHtml(label)}"></i>`;
@@ -563,7 +581,7 @@ function meterRow(label, value, warnAt) {
 function renderIncidents() {
   const incidents = state.incidents || [];
   if (!incidents.length) {
-    els.incidentList.innerHTML = '<li class="incident-empty">最近没有故障记录。所有节点运行平稳。</li>';
+    els.incidentList.innerHTML = '<li class="incident-empty">最近没有故障记录。所有服务器运行平稳。</li>';
     els.incidentMeta.textContent = '最近 0 条';
     return;
   }
@@ -704,6 +722,8 @@ function renderDrawer(detail, preserveScroll = true) {
         <div class="agent-cell"><span>系统</span><strong>${escapeHtml(detail.agent?.platform || '—')}</strong></div>
         <div class="agent-cell"><span>内核</span><strong>${escapeHtml(detail.agent?.kernel || '—')}</strong></div>
         <div class="agent-cell"><span>CPU 核心</span><strong>${detail.agent?.cores ? `${detail.agent.cores} vCPU` : '—'}</strong></div>
+        <div class="agent-cell"><span>公网 IP</span><strong>${escapeHtml(detail.agent?.publicIp ? (state.overview?.site?.showAddress ? detail.agent.publicIp : maskAddress(detail.agent.publicIp)) : '—')}</strong></div>
+        <div class="agent-cell"><span>IP 位置</span><strong>${escapeHtml(agentLocationText(detail.agent?.location))}</strong></div>
         <div class="agent-cell"><span>运行时长</span><strong>${formatUptimeSeconds(detail.agent?.uptimeSeconds)}</strong></div>
         <div class="agent-cell"><span>负载 (1/5/15)</span><strong>${Array.isArray(detail.metrics.load) ? detail.metrics.load.map((value) => Number(value).toFixed(2)).join(' / ') : '—'}</strong></div>
         <div class="agent-cell"><span>入站速率</span><strong>${formatMbps(detail.metrics.net?.rxRate)}</strong></div>
@@ -748,7 +768,7 @@ function renderDrawer(detail, preserveScroll = true) {
             <span>${new Date(incident.startedAt).toLocaleString('zh-CN', { hour12: false })} · ${incident.ongoing ? '进行中' : `持续 ${formatDuration(incident.durationMs)}`}</span>
           </div>
         </div>`).join('')}
-      </div>` : '<p style="font-size:11.5px;color:var(--text-3);margin:0">该节点近期没有异常记录。</p>'}
+      </div>` : '<p style="font-size:11.5px;color:var(--text-3);margin:0">该服务器近期没有异常记录。</p>'}
     </section>`;
 
   const tags = target.tags?.length
@@ -765,6 +785,7 @@ function renderDrawer(detail, preserveScroll = true) {
         </div>
       </div>
       <div class="drawer-head-actions">
+        ${state.auth?.user?.role === 'admin' ? '<button class="drawer-rename" type="button" data-action="rename">重命名</button>' : ''}
         ${statusPill(target.status)}
         <button class="drawer-close" type="button" data-action="close" aria-label="关闭详情">
           <svg viewBox="0 0 20 20" fill="none"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -799,7 +820,7 @@ function renderDrawer(detail, preserveScroll = true) {
       ${incidentsSection}
 
       <section class="drawer-section">
-        <div class="section-row"><h3>节点信息</h3><span class="hint">只读</span></div>
+        <div class="section-row"><h3>服务器信息</h3><span class="hint">只读</span></div>
         ${tags}
         <div class="meta-rows" style="margin-top:8px">
           <div class="meta-row"><span>探测类型</span><b>${typeLabel}</b></div>
@@ -853,6 +874,7 @@ function drawerMeter(label, value, warnAt) {
 
 function bindDrawer() {
   $('.drawer-close', els.drawerContent)?.addEventListener('click', closeDrawer);
+  $('[data-action="rename"]', els.drawerContent)?.addEventListener('click', openRenameTargetDialog);
   $$('[data-range]', els.drawerContent).forEach((button) => {
     button.addEventListener('click', () => {
       if (state.range === button.dataset.range) return;
@@ -860,6 +882,47 @@ function bindDrawer() {
       $$('[data-range]', els.drawerContent).forEach((item) => item.classList.toggle('is-active', item === button));
       loadDetail(false);
     });
+  });
+}
+
+function openRenameTargetDialog() {
+  if (state.auth?.user?.role !== 'admin' || !state.detail) return;
+  const target = state.detail.target;
+  openDialog({
+    kicker: 'SERVER NAME',
+    title: '更改服务器显示名称',
+    subtitle: '仅修改面板中的显示名称，不会改变服务器主机名或 Agent 配置。',
+    body: `
+      <form id="rename-target-form" class="modal-form" novalidate>
+        <div class="form-field">
+          <label for="rename-target-name">显示名称</label>
+          <input id="rename-target-name" name="name" type="text" maxlength="60" value="${escapeHtml(target.name)}" required autocomplete="off" />
+        </div>
+        <div class="dialog-actions">
+          <button class="button primary" type="submit">保存名称</button>
+        </div>
+      </form>`,
+  });
+  const form = $('#rename-target-form', els.dialogBody);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = String(new FormData(form).get('name') || '').trim();
+    if (!name) {
+      dialogError(form, '名称不能为空');
+      return;
+    }
+    try {
+      await api(`/api/admin/targets/${encodeURIComponent(target.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      });
+      closeDialog();
+      toast('服务器名称已更新');
+      await refreshOverview();
+      if (state.selectedId === target.id) await loadDetail(false);
+    } catch (error) {
+      dialogError(form, error.message);
+    }
   });
 }
 
@@ -922,7 +985,7 @@ function startPolling() {
   pollTimer = setInterval(() => {
     if (document.hidden) return;
     refreshOverview();
-  }, 5000);
+  }, 60000);
 }
 
 function stopPolling() {
@@ -1326,10 +1389,12 @@ function openProbeCommandDialog() {
   const tlsNote = internalTls
     ? '<p class="probe-footnote">当前是 IP + Caddy 内部证书，命令已自动加入 <code>ELEGANZA_INSECURE=1</code>；浏览器首次访问也会提示证书不受信任。</p>'
     : '';
-  const command = `read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+  const buildCommand = (force) => `read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
-  | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
+  | sudo env${force ? ' FORCE=1' : ''} ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
     bash -s -- '${base}'`;
+  const command = buildCommand(false);
+  const overwriteCommand = buildCommand(true);
 
   openDialog({
     kicker: 'AGENT INSTALL',
@@ -1349,12 +1414,20 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
           </div>
           <pre id="probe-command-code" tabindex="0">${escapeHtml(command)}</pre>
         </div>
+        <div class="code-block">
+          <div class="code-head">
+            <span>AGENT OVERWRITE · FORCE=1</span>
+            <button class="copy-button" type="button" data-copy-target="probe-overwrite-code" data-label="复制覆盖命令">复制覆盖命令</button>
+          </div>
+          <pre id="probe-overwrite-code" tabindex="0">${escapeHtml(overwriteCommand)}</pre>
+        </div>
+        <p class="probe-footnote">覆盖安装会重写目标机上的 <code>/etc/eleganza-agent.env</code>，适用于修复旧 Token、旧面板地址或旧脚本。</p>
       </div>
       <div class="dialog-section">
         <h3>执行前</h3>
         <ol class="probe-steps">
-          <li>先在面板的 <code>config.json</code> 中为这台服务器添加 <code>type: "agent"</code> 节点。</li>
-          <li>执行命令后按提示输入该节点的 <code>agentKey</code>；Token 不会写进 shell 历史。</li>
+          <li>先在面板的 <code>config.json</code> 中为这台服务器添加一个 <code>type: "agent"</code> 探针节点。</li>
+          <li>执行命令后按提示输入该服务器的 <code>agentKey</code>；Token 不会写进 shell 历史。</li>
           <li>目标服务器需要能访问 <code>${escapeHtml(base)}</code>，并装有 curl 或 wget。</li>
         </ol>
         <p class="probe-footnote">每台服务器使用独立的 agentKey。安装完成后用 <code>journalctl -u eleganza-agent -f</code> 查看日志。</p>

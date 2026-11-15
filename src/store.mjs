@@ -289,11 +289,20 @@ export class Store {
     }) : [];
     const primary = disks.find((disk) => disk.mount === '/') || disks[0] || null;
 
+    const location = {
+      city: String(report.location?.city || previous?.location?.city || '').slice(0, 80),
+      region: String(report.location?.region || previous?.location?.region || '').slice(0, 80),
+      country: String(report.location?.country || previous?.location?.country || '').slice(0, 8),
+      lat: Number.isFinite(Number(report.location?.lat)) ? Number(report.location.lat) : previous?.location?.lat ?? null,
+      lon: Number.isFinite(Number(report.location?.lon)) ? Number(report.location.lon) : previous?.location?.lon ?? null,
+    };
     const agent = {
       hostname: String(report.hostname || previous?.hostname || '').slice(0, 80),
       platform: String(report.platform || previous?.platform || '').slice(0, 120),
       kernel: String(report.kernel || previous?.kernel || '').slice(0, 160),
       version: String(report.agentVersion || previous?.version || '').slice(0, 40),
+      publicIp: String(report.publicIp || previous?.publicIp || '').slice(0, 64),
+      location,
       cores: Number(report.cpu?.cores) || previous?.cores || null,
       cpuModel: String(report.cpu?.model || previous?.cpuModel || '').slice(0, 120),
       uptimeSeconds: Number(report.uptimeSeconds) || null,
@@ -628,6 +637,8 @@ export class Store {
         hostname: state.agent.hostname,
         platform: state.agent.platform,
         version: state.agent.version,
+        publicIp: state.agent.publicIp,
+        location: state.agent.location,
         cores: state.agent.cores,
         uptimeSeconds: state.agent.uptimeSeconds,
         lastSeen: state.agent.at,

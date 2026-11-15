@@ -63,6 +63,8 @@ test('agent reports update metrics, services and rates', async () => {
     platform: 'Ubuntu 24.04',
     kernel: '6.8.0',
     agentVersion: '1.0.0',
+    publicIp: '203.0.113.10',
+    location: { city: 'Singapore', region: 'Singapore', country: 'SG', lat: 1.35, lon: 103.82 },
     uptimeSeconds: 86400,
     cpu: { usage: 37.5, cores: 4 },
     memory: { total: 8 * 1024 ** 3, used: 2 * 1024 ** 3 },
@@ -78,6 +80,9 @@ test('agent reports update metrics, services and rates', async () => {
   assert.equal(state.metrics.mem, 25);
   assert.equal(state.metrics.disk, 25);
   assert.equal(state.services.length, 2);
+  assert.equal(state.agent.publicIp, '203.0.113.10');
+  assert.equal(state.agent.location.city, 'Singapore');
+  assert.equal(store.detail('agent', '24h', now).agent.location.country, 'SG');
   assert.equal(store.overview(now).targets.find((target) => target.id === 'agent').latencyMs, 12.5);
 
   store.recordAgent('agent', {

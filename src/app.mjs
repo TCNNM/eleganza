@@ -1,6 +1,6 @@
 import http from 'node:http';
 import path from 'node:path';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { parseCookies, readJsonBody, safeEqual } from './util.mjs';
 import { AccountError, SESSION_COOKIE } from './accounts.mjs';
@@ -272,6 +272,42 @@ export function createEleganzaServer({ config, store, accounts, publicDir, versi
     }
   }
 
+  async function handleAdminTarget(req, res, user, pathname, method) {
+    if (user.role !== 'admin') return sendJson(req, res, 403, { error: '需要管理员权限' });
+    const match = /^\/api\/admin\/targets\/([a-zA-Z0-9._-]+)$/.exec(pathname);
+    if (!match) return sendJson(req, res, 404, { error: '接口不存在' });
+    if (method !== 'PATCH') {
+      res.setHeader('Allow', 'PATCH');
+      return sendJson(req, res, 405, { error: 'Method Not Allowed' });
+    }
+    const state = store.targets.get(match[1]);
+    if (!state) return sendJson(req, res, 404, { error: '服务器不存在' });
+    const body = await readBody(req, res, 8 * 1024);
+    if (!body) return;
+    if (typeof body.name !== 'string') {
+      return sendJson(req, res, 400, { error: '名称必须是字符串' });
+    }
+    const name = body.name.trim();
+    if (!name || name.length > 60 || /[\r\n]/.test(name)) {
+      return sendJson(req, res, 400, { error: '名称长度必须为 1-60 个字符，且不能包含换行' });
+    }
+
+    try {
+      const raw = JSON.parse(await readFile(config.file, 'utf8'));
+      const rawTarget = Array.isArray(raw.targets) ? raw.targets.find((target) => target.id === match[1]) : null;
+      if (!rawTarget) return sendJson(req, res, 404, { error: '服务器不在配置文件中' });
+      rawTarget.name = name;
+      await writeFile(config.file, `${JSON.stringify(raw, null, 2)}\n`, 'utf8');
+    } catch (error) {
+      log.warn?.(`[Eleganza] 重命名服务器失败: ${error.message}`);
+      return sendJson(req, res, 500, { error: '无法写入配置文件' });
+    }
+
+    state.target.name = name;
+    log.info?.(`[Eleganza] 服务器 ${match[1]} 已重命名为 ${name}`);
+    return sendJson(req, res, 200, { ok: true, target: { id: match[1], name } });
+  }
+
   async function handleAdminUsers(req, res, user, pathname, method) {
     if (user.role !== 'admin') return sendJson(req, res, 403, { error: '需要管理员权限' });
     if (pathname === '/api/admin/users') {
@@ -454,6 +490,11 @@ export function createEleganzaServer({ config, store, accounts, publicDir, versi
     if (pathname === '/api/admin/users' || pathname.startsWith('/api/admin/users/')) {
       if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
       return handleAdminUsers(req, res, user, pathname, req.method);
+    }
+
+    if (pathname.startsWith('/api/admin/targets/')) {
+      if (!user) return sendJson(req, res, 401, { error: '需要登录', loginRequired: true });
+      return handleAdminTarget(req, res, user, pathname, req.method);
     }
 
     if (pathname.startsWith('/api/')) {

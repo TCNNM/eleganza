@@ -1968,6 +1968,24 @@ svg {
   flex-shrink: 0;
 }
 
+.drawer-rename {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.drawer-rename:hover {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.42);
+}
+
 .drawer-close {
   display: grid;
   place-items: center;

@@ -42,40 +42,5 @@
     "notifyOnRecovery": true,
     "timeoutMs": 8000
   },
-  "targets": [
-    {
-      "id": "cloudflare",
-      "name": "Cloudflare",
-      "group": "示例",
-      "country": "US",
-      "city": "Anycast",
-      "lat": 37.7749,
-      "lon": -122.4194,
-      "type": "https",
-      "url": "https://www.cloudflare.com/",
-      "intervalSeconds": 30,
-      "tls": true,
-      "services": [],
-      "tags": [
-        "示例"
-      ]
-    },
-    {
-      "id": "dns-tcp",
-      "name": "1.1.1.1 · DNS",
-      "group": "示例",
-      "country": "US",
-      "city": "Anycast",
-      "lat": 40.7128,
-      "lon": -74.006,
-      "type": "tcp",
-      "host": "1.1.1.1",
-      "port": 53,
-      "intervalSeconds": 30,
-      "services": [],
-      "tags": [
-        "示例"
-      ]
-    }
-  ]
+  "targets": []
 }
