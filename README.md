@@ -9,6 +9,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
   | sudo bash
 ```
 
+安装时会询问 **绑定公网 IP** 还是 **绑定域名**，服务监听 `0.0.0.0:8787`。  
 安装到 `/opt/eleganza`，完成后按终端打印的初始化令牌打开面板并创建管理员。  
 探针 / Agent 安装见 [Agent](#agent) 章节。
 
@@ -128,13 +129,34 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
   | sudo bash
 ```
 
+安装时会显示：
+
+```text
+请选择面板访问方式（服务将监听 0.0.0.0:8787）：
+  1) 绑定公网 IP（http://IP:8787）
+  2) 绑定域名（http://域名:8787，需要 DNS 指向本机）
+选择 [1/2]:
+```
+
 脚本会：
 
 - 下载源码到 `/opt/eleganza`
 - 创建系统用户 `eleganza`
 - 生成 `config.json`、`data/` 和 systemd 服务
-- 启动面板并做健康检查
-- 打印首次初始化令牌
+- 按选择监听 `0.0.0.0:8787`，启动面板并做健康检查
+- 打印访问地址和首次初始化令牌
+
+非交互式安装（适合脚本 / CI）：
+
+```bash
+# 绑定公网 IP
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+  | sudo env ELEGANZA_BIND=ip ELEGANZA_IP=1.2.3.4 bash
+
+# 绑定域名
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
+  | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com bash
+```
 
 安装完成后：
 
@@ -151,7 +173,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-
   | sudo env ELEGANZA_DIR=/opt/eleganza ELEGANZA_PORT=8787 bash
 ```
 
-> 面板只监听 `127.0.0.1`。公网访问仍需 Caddy / Nginx 反向代理，并在 `config.json` 里设置 `site.trustProxy: true`。  
+> 一键安装脚本会按选择监听 `0.0.0.0:8787`。公网开放前请确认云安全组和防火墙只放行需要的来源；正式环境建议用 Caddy / Nginx 在 443 上反向代理，并在 `config.json` 里设置 `site.trustProxy: true`。  
 > 如果不想用 root 管道脚本，可先下载检查：`curl -fsSL ... -o /tmp/install-panel.sh && less /tmp/install-panel.sh && sudo bash /tmp/install-panel.sh`。
 
 ### 4. Docker
@@ -447,7 +469,7 @@ Eleganza **不提供对外 REST API，也不提供 MCP**。面板通过同源页
 
 ## 暴露到公网
 
-面板自身只监听 `127.0.0.1`，建议用 Caddy 或 Nginx 终止 TLS：
+手动运行和 Docker 默认只监听 `127.0.0.1`；一键安装脚本会按选择监听 `0.0.0.0:8787`。无论哪种方式，都建议用 Caddy 或 Nginx 终止 TLS：
 
 ```bash
 sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile

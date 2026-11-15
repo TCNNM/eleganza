@@ -5,9 +5,16 @@
 #   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh \
 #     | sudo bash
 #
+# 安装时会询问：
+#   1. 绑定公网 IP（http://IP:8787）
+#   2. 绑定域名（http://域名:8787，需要 DNS 指向本机）
+#
 # 可选环境变量：
-#   ELEGANZA_DIR=/opt/eleganza   安装目录
-#   ELEGANZA_PORT=8787           监听端口（只绑定 127.0.0.1）
+#   ELEGANZA_BIND=ip|domain     非交互式指定访问方式
+#   ELEGANZA_IP=1.2.3.4         绑定 IP 模式下的公网 IP
+#   ELEGANZA_DOMAIN=status.example.com  绑定域名模式下的域名
+#   ELEGANZA_DIR=/opt/eleganza  安装目录
+#   ELEGANZA_PORT=8787          监听端口
 #
 # 安装完成后：
 #   1. 用终端打印的初始化令牌打开面板初始化管理员，或
@@ -21,12 +28,31 @@ INSTALL_DIR="${ELEGANZA_DIR:-/opt/eleganza}"
 PORT="${ELEGANZA_PORT:-8787}"
 SERVICE="eleganza"
 
+if ! printf '%s' "$PORT" | grep -Eq '^[0-9]+$' || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
+  echo "ELEGANZA_PORT 无效：$PORT" >&2
+  exit 2
+fi
+if [ "$PORT" -lt 1024 ]; then
+  echo "端口 $PORT 小于 1024，服务以 eleganza 普通用户运行无法绑定。" >&2
+  echo "请使用 8787 等高位端口，再用 Caddy / Nginx 反向代理到 80/443。" >&2
+  exit 2
+fi
+
 usage() {
   cat <<'USAGE'
 用法:
   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/main/deploy/install-panel.sh | sudo bash
 
+安装时会询问绑定公网 IP 还是域名。
+
+非交互式示例:
+  curl ... | sudo env ELEGANZA_BIND=ip ELEGANZA_IP=1.2.3.4 bash
+  curl ... | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com bash
+
 可选环境变量:
+  ELEGANZA_BIND=ip|domain
+  ELEGANZA_IP=1.2.3.4
+  ELEGANZA_DOMAIN=status.example.com
   ELEGANZA_DIR=/opt/eleganza
   ELEGANZA_PORT=8787
 USAGE
@@ -63,6 +89,90 @@ if ! command -v git >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1 && ! co
   echo "需要 git，或 curl/wget 中的至少一个，用于下载源码。" >&2
   exit 1
 fi
+
+BIND_MODE="${ELEGANZA_BIND:-}"
+PUBLIC_IP="${ELEGANZA_IP:-}"
+DOMAIN="${ELEGANZA_DOMAIN:-}"
+BIND_HOST="0.0.0.0"
+PUBLIC_URL=""
+
+read_tty() {
+  local prompt="$1"
+  local default_value="${2:-}"
+  local answer=""
+  if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+    return 1
+  fi
+  if [ -n "$default_value" ]; then
+    printf '%s [%s]: ' "$prompt" "$default_value" >/dev/tty
+  else
+    printf '%s: ' "$prompt" >/dev/tty
+  fi
+  IFS= read -r answer </dev/tty || return 1
+  printf '%s' "${answer:-$default_value}"
+}
+
+detect_ip() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null && return 0
+  fi
+  hostname -I 2>/dev/null | awk '{print $1}'
+}
+
+if [ -z "$BIND_MODE" ]; then
+  if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+    echo "非交互环境请设置 ELEGANZA_BIND=ip 或 ELEGANZA_BIND=domain。" >&2
+    exit 2
+  fi
+  printf '\n请选择面板访问方式（服务将监听 0.0.0.0:%s）：\n' "$PORT" >/dev/tty
+  printf '  1) 绑定公网 IP（http://IP:%s）\n' "$PORT" >/dev/tty
+  printf '  2) 绑定域名（http://域名:%s，需要 DNS 指向本机）\n' "$PORT" >/dev/tty
+  printf '选择 [1/2]: ' >/dev/tty
+  read -r BIND_CHOICE </dev/tty || exit 2
+  case "$BIND_CHOICE" in
+    1) BIND_MODE="ip" ;;
+    2) BIND_MODE="domain" ;;
+    *) echo "无效选择：$BIND_CHOICE" >&2; exit 2 ;;
+  esac
+fi
+
+case "$BIND_MODE" in
+  ip)
+    if [ -z "$PUBLIC_IP" ]; then
+      DETECTED_IP="$(detect_ip || true)"
+      if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        PUBLIC_IP="$(read_tty "公网 IP" "$DETECTED_IP")" || PUBLIC_IP="$DETECTED_IP"
+      else
+        PUBLIC_IP="$DETECTED_IP"
+      fi
+    fi
+    if ! printf '%s' "$PUBLIC_IP" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+      echo "公网 IP 格式无效：${PUBLIC_IP:-空}（当前只支持 IPv4；IPv6 请使用域名模式）" >&2
+      exit 2
+    fi
+    PUBLIC_URL="http://${PUBLIC_IP}:${PORT}"
+    ;;
+  domain)
+    if [ -z "$DOMAIN" ]; then
+      if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+        echo "域名模式请设置 ELEGANZA_DOMAIN。" >&2
+        exit 2
+      fi
+      DOMAIN="$(read_tty "域名（例如 status.example.com）")" || DOMAIN=""
+    fi
+    if ! printf '%s' "$DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' || ! printf '%s' "$DOMAIN" | grep -q '\.'; then
+      echo "域名格式无效：${DOMAIN:-空}" >&2
+      exit 2
+    fi
+    PUBLIC_URL="http://${DOMAIN}:${PORT}"
+    ;;
+  *)
+    echo "ELEGANZA_BIND 只能是 ip 或 domain。" >&2
+    exit 2
+    ;;
+esac
+
+echo "==> 访问方式：$PUBLIC_URL（服务监听 ${BIND_HOST}:${PORT}）"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
@@ -134,7 +244,7 @@ Type=simple
 User=eleganza
 Group=eleganza
 WorkingDirectory=$INSTALL_DIR
-Environment=ELEGANZA_HOST=127.0.0.1
+Environment=ELEGANZA_HOST=$BIND_HOST
 Environment=ELEGANZA_PORT=$PORT
 Environment=TZ=Asia/Shanghai
 ExecStart=$NODE_BIN $INSTALL_DIR/server.mjs
@@ -173,10 +283,25 @@ done
 
 echo
 if [ "$OK" -eq 1 ]; then
-  echo "安装完成：http://127.0.0.1:$PORT"
+  echo "安装完成：$PUBLIC_URL"
+  echo "本机健康检查：http://127.0.0.1:$PORT/healthz"
 else
   echo "服务已启动，但健康检查未通过，请查看："
   echo "  journalctl -u $SERVICE -n 80 --no-pager"
+fi
+
+if [ "$BIND_MODE" = "domain" ]; then
+  echo
+  echo "域名模式提示："
+  echo "  1. 确认 $DOMAIN 的 DNS 已指向本机"
+  echo "  2. 当前直接访问 http://$DOMAIN:$PORT"
+  echo "  3. 正式环境建议用 Caddy / Nginx 反向代理 127.0.0.1:$PORT，并启用 HTTPS"
+  echo "     反代后建议在 config.json 设置 site.trustProxy：true"
+else
+  echo
+  echo "如果外部无法访问，请检查云安全组和防火墙是否放行 TCP $PORT："
+  echo "  ufw allow $PORT/tcp"
+  echo "  firewall-cmd --permanent --add-port=$PORT/tcp && firewall-cmd --reload"
 fi
 
 SETUP_TOKEN="$(journalctl -u "$SERVICE" --no-pager -n 120 2>/dev/null | grep -A3 "初始化令牌" | tail -n 3 || true)"
@@ -197,4 +322,5 @@ fi
 echo
 echo "配置文件: $INSTALL_DIR/config.json"
 echo "查看日志: journalctl -u $SERVICE -f"
-echo "公网访问请用 Caddy / Nginx 反向代理，并在 config.json 设置 site.trustProxy: true"
+echo "安全提示: 面板已对公网监听。请立即用初始化令牌创建管理员；"
+echo "          如需禁止匿名访问，把 config.json 的 accounts.required 改为 true 后重启 $SERVICE。"
