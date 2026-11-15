@@ -1,0 +1,343 @@
+/* Dedicated 16:9 pages for overview / servers / events / about. */
+
+body[data-page="servers"],
+body[data-page="events"],
+body[data-page="about"] {
+  overflow: hidden;
+}
+
+body[data-page="servers"] .shell,
+body[data-page="events"] .shell,
+body[data-page="about"] .shell {
+  width: 100%;
+  max-width: min(1680px, calc((100svh - 72px) * 16 / 9));
+  height: calc(100svh - 72px);
+  margin: 0 auto;
+  padding: clamp(20px, 3vh, 38px) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body[data-page="servers"] .footer,
+body[data-page="events"] .footer,
+body[data-page="about"] .footer {
+  display: none;
+}
+
+body[data-page="servers"] .hero,
+body[data-page="servers"] .split,
+body[data-page="events"] .hero,
+body[data-page="events"] .kpis,
+body[data-page="events"] .nodes-section,
+body[data-page="about"] .hero,
+body[data-page="about"] .kpis,
+body[data-page="about"] .nodes-section {
+  display: none;
+}
+
+body[data-page="events"] .status-banner,
+body[data-page="about"] .status-banner {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ servers */
+
+body[data-page="servers"] .kpis {
+  flex-shrink: 0;
+  gap: 12px;
+  margin: 0 0 clamp(16px, 2vh, 24px);
+}
+
+body[data-page="servers"] .kpi-card {
+  padding: 14px 17px 13px;
+}
+
+body[data-page="servers"] .kpi-value {
+  font-size: clamp(24px, 2.2vw, 32px);
+}
+
+body[data-page="servers"] .nodes-section {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body[data-page="servers"] .section-head {
+  flex-shrink: 0;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+body[data-page="servers"] .section-title h2 {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+body[data-page="servers"] .node-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  grid-auto-rows: max-content;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+body[data-page="servers"] .section-note {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+body[data-page="servers"] .empty-state {
+  flex: 1;
+}
+
+.probe-toolbar {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+body[data-page="overview"] .probe-toolbar {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------- events */
+
+body[data-page="events"] .split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.6fr);
+  gap: 16px;
+  width: min(1400px, 100%);
+  margin: 0 auto;
+}
+
+body[data-page="events"] .incidents-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body[data-page="events"] .panel-head {
+  flex-shrink: 0;
+}
+
+body[data-page="events"] .incident-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  grid-template-columns: 1fr;
+  align-content: start;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+body[data-page="events"] .info-panel {
+  display: none;
+}
+
+body[data-page="events"] .event-summary {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.event-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 8px;
+}
+
+.event-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.event-stats span {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.event-stats strong {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.event-help {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--text-3);
+}
+
+body[data-page="events"] .incident-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  place-content: center;
+  min-height: 42vh;
+}
+
+/* -------------------------------------------------------------------- about */
+
+body[data-page="about"] .split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 70px);
+  width: min(1400px, 100%);
+  margin: 0 auto;
+}
+
+body[data-page="about"] .incidents-panel {
+  display: none;
+}
+
+body[data-page="about"] .info-panel {
+  width: 100%;
+  padding: clamp(26px, 4vw, 48px);
+}
+
+.about-copy {
+  min-width: 0;
+}
+
+.page-kicker {
+  margin: 0 0 18px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-3);
+}
+
+.about-copy h1 {
+  margin: 0;
+  font-size: clamp(38px, 4.6vw, 74px);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.about-desc {
+  max-width: 480px;
+  margin: 22px 0 0;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--text-2);
+}
+
+.about-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 22px;
+}
+
+.about-chips span {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+}
+
+.about-link {
+  margin-top: 24px;
+}
+
+body[data-page="about"] .info-panel .panel-head h2 {
+  font-size: clamp(28px, 3vw, 46px);
+}
+
+body[data-page="about"] .panel-desc {
+  max-width: 640px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+body[data-page="about"] .meta-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 34px;
+  margin-top: 26px;
+}
+
+body[data-page="about"] .info-note {
+  margin-top: 28px;
+  max-width: 760px;
+}
+
+@media (max-width: 960px) {
+  body[data-page="servers"],
+  body[data-page="events"],
+  body[data-page="about"] {
+    overflow: auto;
+  }
+
+  body[data-page="servers"] .shell,
+  body[data-page="events"] .shell,
+  body[data-page="about"] .shell {
+    height: auto;
+    min-height: calc(100svh - 72px);
+    max-width: 100%;
+    padding-bottom: 32px;
+  }
+
+  body[data-page="servers"] .node-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  body[data-page="events"] .incident-list {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  body[data-page="events"] .incident-item:nth-child(2) {
+    border-top: 1px solid var(--line);
+    padding-top: 13px;
+  }
+
+  body[data-page="about"] .split {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  body[data-page="about"] .meta-rows {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  body[data-page="servers"] .node-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="servers"] .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body[data-page="servers"] .probe-toolbar {
+    width: 100%;
+  }
+}

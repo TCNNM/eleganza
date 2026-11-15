@@ -69,6 +69,7 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 - **实时地球**：纯 Canvas 绘制的 3D 点阵地球，节点脉冲、中枢弧线、鼠标拖动旋转、点击节点打开详情。
 - **两种探针**：服务端主动探测 HTTP / HTTPS / TCP，支持状态码白名单、关键字、TLS 证书天数；资源类指标由 Agent 反向推送。
 - **管理员接入**：仅管理员可见「探针指令」；点击生成命令时自动创建待接入服务器和专属 agentKey，命令内已包含密钥，不需要手动编辑 `config.json`，也无需再输入 Token。支持首次安装与 `FORCE=1` 覆盖安装。
+- **独立页面**：总览、服务器、事件、关于拆成独立网页（`/`、`/servers.html`、`/events.html`、`/about.html`），服务器/事件/关于按 16:9 桌面视图重新排版。
 - **IP 定位**：探针中枢按面板公网 IP 定位；Agent 按上报的公网 IP 定位；普通 HTTP/TCP 探针按解析到的 IP 定位。坐标优先使用 IP 位置，失败才回退到 `config.json` 的 `lat/lon`。Agent 还会上报 CPU、内存、磁盘和负载；定位结果缓存 6 小时。
 - **服务器状态**：自动刷新间隔为 60 秒；示例节点默认不写入正式配置。
 - **30 天可用率**：按小时聚合的长期桶，按天着色；另有 1h / 24h / 7d / 30d 延迟曲线。
@@ -83,6 +84,12 @@ Eleganza 把自己定位成 **只读的观测面板**，不接管代理协议、
 ![节点详情](docs/drawer.png)
 
 ![外观设置](docs/appearance.png)
+
+![服务器页面](docs/servers.png)
+
+![事件页面](docs/events.png)
+
+![关于页面](docs/about.png)
 
 ![探针指令](docs/probe-command.png)
 
@@ -608,8 +615,12 @@ eleganza/
 │   ├── notify.mjs          # Webhook / Telegram
 │   └── util.mjs
 ├── public/
-│   ├── index.html          # 单页结构
+│   ├── index.html          # 总览页
+│   ├── servers.html        # 独立服务器页
+│   ├── events.html         # 独立事件页
+│   ├── about.html          # 独立关于页
 │   ├── style.css           # 设计系统与响应式
+│   ├── pages.css           # 独立页面 16:9 排版
 │   ├── appearance.css      # 主题、外观面板、账号弹窗、用户管理
 │   ├── theme.js            # 外观偏好、强调色、localStorage
 │   ├── theme-boot.js       # 首屏应用主题，避免闪烁

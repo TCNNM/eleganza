@@ -53,7 +53,7 @@ const state = {
 const els = {
   clock: $('#clock'),
   refresh: $('#refresh-button'),
-  probeCommandButton: $('#probe-command-button'),
+  probeCommandButtons: $$('[data-probe-command]'),
   appearanceButton: $('#appearance-button'),
   appearancePopover: $('#appearance-popover'),
   accountButton: $('#account-button'),
@@ -585,14 +585,21 @@ function meterRow(label, value, warnAt) {
 
 function renderIncidents() {
   const incidents = state.incidents || [];
+  const ongoing = incidents.filter((incident) => incident.ongoing).length;
+  const eventOpen = $('#event-open');
+  if (eventOpen) {
+    eventOpen.textContent = String(ongoing);
+    $('#event-resolved').textContent = String(incidents.length - ongoing);
+    $('#event-total').textContent = String(incidents.length);
+  }
   if (!incidents.length) {
     els.incidentList.innerHTML = '<li class="incident-empty">最近没有故障记录。所有服务器运行平稳。</li>';
     els.incidentMeta.textContent = '最近 0 条';
     return;
   }
-  const ongoing = incidents.filter((incident) => incident.ongoing).length;
   els.incidentMeta.textContent = ongoing ? `进行中 ${ongoing} · 共 ${incidents.length} 条` : `最近 ${incidents.length} 条`;
-  els.incidentList.innerHTML = incidents.slice(0, 8).map((incident) => {
+  const limit = document.body.dataset.page === 'events' ? 20 : 8;
+  els.incidentList.innerHTML = incidents.slice(0, limit).map((incident) => {
     const started = new Date(incident.startedAt);
     const pad = (value) => String(value).padStart(2, '0');
     const dotClass = incident.ongoing ? 'ongoing' : '';
@@ -934,6 +941,7 @@ function openRenameTargetDialog() {
 // ------------------------------------------------------------------ globe setup
 
 function setupGlobe() {
+  if (document.body.dataset.page && document.body.dataset.page !== 'overview') return;
   const canvas = $('#globe');
   if (!canvas) return;
   globe = new Globe(canvas, {
@@ -1107,8 +1115,8 @@ function togglePopover(popover, button) {
 
 function updateAccountUI() {
   const user = state.auth?.user;
-  if (els.probeCommandButton) {
-    els.probeCommandButton.hidden = user?.role !== 'admin';
+  for (const button of els.probeCommandButtons) {
+    button.hidden = user?.role !== 'admin';
   }
   if (!user) {
     els.accountAvatar.innerHTML = GUEST_AVATAR;
@@ -1701,10 +1709,16 @@ function init() {
   state.prefs = loadPreferences();
   applyPreferences(state.prefs);
   syncAppearanceControls();
+  const page = document.body.dataset.page || 'overview';
+  for (const link of $$('.topnav a[data-nav]')) {
+    link.classList.toggle('is-active', link.dataset.nav === page);
+  }
   setupGlobe();
 
   els.refresh.addEventListener('click', () => refreshOverview());
-  els.probeCommandButton?.addEventListener('click', openProbeCommandDialog);
+  for (const button of els.probeCommandButtons) {
+    button.addEventListener('click', openProbeCommandDialog);
+  }
 
   els.appearanceButton.addEventListener('click', (event) => {
     event.stopPropagation();

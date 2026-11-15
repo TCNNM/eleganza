@@ -11,6 +11,8 @@ const url = get('--url', 'http://127.0.0.1:8791/');
 const expression = get('--eval', 'document.title');
 const port = get('--port', '9222');
 const wait = Number(get('--wait', '2500'));
+const width = Number(get('--width', '0'));
+const height = Number(get('--height', '0'));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
@@ -49,6 +51,16 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Log.enable');
+if (width > 0 && height > 0) {
+  await send('Emulation.setDeviceMetricsOverride', {
+    width,
+    height,
+    deviceScaleFactor: 1,
+    mobile: false,
+    screenWidth: width,
+    screenHeight: height,
+  });
+}
 await send('Page.navigate', { url });
 await sleep(wait);
 const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
