@@ -9,7 +9,13 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/depl
   | sudo bash
 ```
 
-安装时会询问 **绑定公网 IP** 还是 **绑定域名**，服务监听 `0.0.0.0:8787`。  
+安装时会依次询问：
+
+- 绑定 **域名** 还是 **公网 IP**
+- 是否使用 **Caddy 监听**
+- 是否 **自动申请 HTTPS 证书**
+- 公开端口使用 **443** 还是 **自定义端口**
+
 安装到 `/opt/eleganza`，完成后按终端打印的初始化令牌打开面板并创建管理员。  
 探针 / Agent 安装见 [Agent](#agent) 章节。
 
@@ -20,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/depl
   | sudo bash
 ```
 
-默认会停止并删除 `eleganza.service` 和 `/opt/eleganza`，删除前把 `config.json` 与 `data/` 备份到 `/root/eleganza-backup-*.tar.gz`。
+默认会停止并删除 `eleganza.service` 和 `/opt/eleganza`，删除前把 `config.json` 与 `data/` 备份到 `/root/eleganza-backup-*.tar.gz`；如果安装了 Caddy，也会移除 Caddyfile 中 Eleganza 的管理块（Caddy 软件本身保留）。
 
 ```bash
 # 无交互卸载
@@ -153,34 +159,57 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/depl
   | sudo bash
 ```
 
-安装时会显示：
+安装时会依次显示：
 
 ```text
-请选择面板访问方式（服务将监听 0.0.0.0:8787）：
-  1) 绑定公网 IP（http://IP:8787）
-  2) 绑定域名（http://域名:8787，需要 DNS 指向本机）
-选择 [1/2]:
+请选择面板绑定方式：
+  1) 绑定域名（可使用 Let's Encrypt 自动证书）
+  2) 绑定公网 IP（可使用 Caddy 内部证书）
+
+是否使用 Caddy 监听？
+是否自动申请证书？
+公开端口：443（推荐）或自定义端口
 ```
+
+使用 Caddy 时：
+
+- **域名 + 自动证书**：Let's Encrypt，自动续期
+- **IP + 自动证书**：Caddy 内部 CA，自动续期；浏览器会提示证书不受信任
+- **自定义 HTTPS 端口**：仍然需要放行 80，供 [ACME HTTP 验证](https://caddyserver.com/docs/automatic-https) 使用
+- Caddy 未安装时会尝试通过 apt / dnf / yum 自动安装
+- 已有 `/etc/caddy/Caddyfile` 会被保留，Eleganza 只追加自己的管理块，并先备份
 
 脚本会：
 
 - 下载源码到 `/opt/eleganza`
 - 创建系统用户 `eleganza`
 - 生成 `config.json`、`data/` 和 systemd 服务
-- 把选择的面板地址写入 `site.publicUrl`，供首页「探针指令」使用
-- 按选择监听 `0.0.0.0:8787`，启动面板并做健康检查
+- 把公开地址写入 `site.publicUrl`，并自动设置 `site.trustProxy`
+- 配置 Caddy（可选）并启动面板，做健康检查
 - 打印访问地址和首次初始化令牌
 
 非交互式安装（适合脚本 / CI）：
 
 ```bash
-# 绑定公网 IP
+# 域名 + Caddy + Let's Encrypt + 443
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
-  | sudo env ELEGANZA_BIND=ip ELEGANZA_IP=1.2.3.4 bash
+  | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com \
+      ELEGANZA_USE_CADDY=1 ELEGANZA_AUTO_TLS=1 ELEGANZA_PORT=443 bash
 
-# 绑定域名
+# 域名 + Caddy + Let's Encrypt + 自定义 8443
 curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
-  | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com bash
+  | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com \
+      ELEGANZA_USE_CADDY=1 ELEGANZA_AUTO_TLS=1 ELEGANZA_PORT=8443 bash
+
+# 公网 IP + Caddy 内部证书 + 443
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
+  | sudo env ELEGANZA_BIND=ip ELEGANZA_IP=203.0.113.10 \
+      ELEGANZA_USE_CADDY=1 ELEGANZA_AUTO_TLS=1 ELEGANZA_PORT=443 bash
+
+# 不使用 Caddy：Node 直接监听 8787
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
+  | sudo env ELEGANZA_BIND=domain ELEGANZA_DOMAIN=status.example.com \
+      ELEGANZA_USE_CADDY=0 ELEGANZA_PORT=8787 bash
 ```
 
 安装完成后：
@@ -191,14 +220,8 @@ sudo systemctl restart eleganza
 sudo systemctl status eleganza --no-pager
 ```
 
-自定义目录或端口：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/deploy/install-panel.sh \
-  | sudo env ELEGANZA_DIR=/opt/eleganza ELEGANZA_PORT=8787 bash
-```
-
-> 一键安装脚本会按选择监听 `0.0.0.0:8787`。公网开放前请确认云安全组和防火墙只放行需要的来源；正式环境建议用 Caddy / Nginx 在 443 上反向代理，并在 `config.json` 里设置 `site.trustProxy: true`。  
+> IP + 内部证书时，浏览器首次访问会提示证书不受信任；面板生成的 Agent 命令会自动带上 `ELEGANZA_INSECURE=1`。  
+> 不使用 Caddy 时，Node 以普通用户运行，公开端口必须 ≥ 1024，且无法自动提供 HTTPS。  
 > 如果不想用 root 管道脚本，可先下载检查：`curl -fsSL ... -o /tmp/install-panel.sh && less /tmp/install-panel.sh && sudo bash /tmp/install-panel.sh`。
 
 ### 4. Docker
@@ -495,7 +518,7 @@ Eleganza **不提供对外 REST API，也不提供 MCP**。面板通过同源页
 
 ## 暴露到公网
 
-手动运行和 Docker 默认只监听 `127.0.0.1`；一键安装脚本会按选择监听 `0.0.0.0:8787`。无论哪种方式，都建议用 Caddy 或 Nginx 终止 TLS：
+手动运行和 Docker 默认只监听 `127.0.0.1`；一键安装可以按选择由 Caddy 监听公开端口，或让 Node 直接监听。无论哪种方式，都建议用 TLS 终止：
 
 ```bash
 sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
@@ -510,7 +533,7 @@ Caddyfile / Nginx 示例都在 `deploy/`。使用反向代理时：
 
 安全建议：
 
-- 一键安装会选择公网 IP 或域名，并在 `0.0.0.0:8787` 上监听；请立即用初始化令牌创建管理员，并在不需要时用安全组/防火墙限制 8787，优先通过 443 反向代理。
+- 一键安装支持 Caddy 自动证书；如果选择 Node 直连，面板会监听公开端口，请立即用初始化令牌创建管理员，并用安全组/防火墙限制来源。
 - 首次初始化完成前不要把面板长期暴露在公网；初始化令牌只在终端打印。
 - 管理员密码用 16 位以上随机串，不要与任何外部服务复用。
 - 每个成员使用独立账号，不共用管理员；离职后禁用或删除账号。

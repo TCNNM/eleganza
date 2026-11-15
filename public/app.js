@@ -1311,8 +1311,23 @@ function openProbeCommandDialog() {
   const fallbackNote = fromConfig
     ? ''
     : '<p class="probe-footnote">当前使用浏览器访问地址。如果这是 127.0.0.1 或 SSH 隧道地址，请在 config.json 中把 <code>site.publicUrl</code> 设置为对外域名。</p>';
+  let host = '';
+  let isHttps = false;
+  try {
+    const parsed = new URL(base);
+    host = parsed.hostname.replace(/^\[|\]$/g, '');
+    isHttps = parsed.protocol === 'https:';
+  } catch {
+    // Keep the command usable even if the URL is unusual.
+  }
+  const isIpHost = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':');
+  const internalTls = isHttps && isIpHost;
+  const extraEnv = internalTls ? ' ELEGANZA_INSECURE=1' : '';
+  const tlsNote = internalTls
+    ? '<p class="probe-footnote">当前是 IP + Caddy 内部证书，命令已自动加入 <code>ELEGANZA_INSECURE=1</code>；浏览器首次访问也会提示证书不受信任。</p>'
+    : '';
   const command = `curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
-  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var" \\
+  | sudo env ELEGANZA_SERVICES="nginx xray" ELEGANZA_MOUNTS="/ /var"${extraEnv} \\
     bash -s -- '${base}' '<AGENT_TOKEN>'`;
 
   openDialog({
@@ -1343,6 +1358,7 @@ function openProbeCommandDialog() {
         </ol>
         <p class="probe-footnote">每台服务器使用独立的 agentKey。安装完成后用 <code>journalctl -u eleganza-agent -f</code> 查看日志。</p>
         ${fallbackNote}
+        ${tlsNote}
         <a class="panel-link" href="https://github.com/TCNNM/eleganza#agent" target="_blank" rel="noreferrer">
           查看完整 Agent 安装说明
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4h9v9M16 4 6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

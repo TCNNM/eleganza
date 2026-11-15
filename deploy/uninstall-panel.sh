@@ -19,6 +19,7 @@ set -euo pipefail
 
 SERVICE="eleganza"
 INSTALL_DIR="${ELEGANZA_DIR:-/opt/eleganza}"
+CADDYFILE_PATH="${ELEGANZA_CADDYFILE:-/etc/caddy/Caddyfile}"
 ASSUME_YES="${ELEGANZA_UNINSTALL_YES:-0}"
 PURGE="${ELEGANZA_UNINSTALL_PURGE:-0}"
 
@@ -29,6 +30,7 @@ usage() {
 
 可选环境变量:
   ELEGANZA_DIR=/opt/eleganza       安装目录
+  ELEGANZA_CADDYFILE=/etc/caddy/Caddyfile
   ELEGANZA_UNINSTALL_YES=1         跳过确认
   ELEGANZA_UNINSTALL_PURGE=1       不备份，直接删除配置和数据
 USAGE
@@ -91,6 +93,25 @@ fi
 if [ "$HAVE_SYSTEMD" = "1" ]; then
   systemctl daemon-reload >/dev/null 2>&1 || true
   systemctl reset-failed "$SERVICE" >/dev/null 2>&1 || true
+fi
+
+if [ -f "$CADDYFILE_PATH" ] && grep -q '^# BEGIN ELEGANZA$' "$CADDYFILE_PATH"; then
+  CADDY_BACKUP="/root/caddy-Caddyfile-$(date +%Y%m%d-%H%M%S).bak"
+  cp "$CADDYFILE_PATH" "$CADDY_BACKUP"
+  awk '
+    /^# BEGIN ELEGANZA$/ { skip=1; next }
+    /^# END ELEGANZA$/ { skip=0; next }
+    !skip { print }
+  ' "$CADDYFILE_PATH" > "$CADDYFILE_PATH.tmp"
+  mv "$CADDYFILE_PATH.tmp" "$CADDYFILE_PATH"
+  if command -v caddy >/dev/null 2>&1; then
+    caddy fmt --overwrite "$CADDYFILE_PATH" >/dev/null 2>&1 || true
+    if [ "$HAVE_SYSTEMD" = "1" ] && systemctl is-active caddy >/dev/null 2>&1; then
+      systemctl reload caddy >/dev/null 2>&1 || true
+    fi
+  fi
+  echo "已移除 Eleganza 的 Caddy 配置块"
+  echo "Caddyfile 备份：$CADDY_BACKUP"
 fi
 
 BACKUP=""
