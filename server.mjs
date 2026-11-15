@@ -6,6 +6,7 @@ import { Prober } from './src/probe.mjs';
 import { seedDemoData, DemoSource } from './src/demo.mjs';
 import { Accounts } from './src/accounts.mjs';
 import { Notifier } from './src/notify.mjs';
+import { GeoLocator } from './src/geo.mjs';
 import { createEleganzaServer, VERSION } from './src/app.mjs';
 
 const argv = process.argv.slice(2);
@@ -35,6 +36,7 @@ const host = argValue('--host') || process.env.ELEGANZA_HOST || '127.0.0.1';
 const store = new Store({ config });
 const accounts = new Accounts({ config, dataDir: config.dataDir });
 const notifier = new Notifier({ config });
+const geo = new GeoLocator({ dataDir: config.dataDir });
 const server = createEleganzaServer({
   config,
   store,
@@ -55,6 +57,8 @@ async function main() {
     demoSource = new DemoSource({ store, config });
   } else {
     await store.load();
+    await geo.init();
+    await geo.applyPanelLocation(config, store);
     if (notifier.enabled) {
       store.onEvent((event, incident, node) => notifier.send(event, incident, node));
     }
@@ -66,6 +70,9 @@ async function main() {
     else {
       prober = new Prober({ store, config });
       prober.start();
+      geo.applyTargetLocations(store).catch((error) => {
+        console.warn(`  [geo] 服务器位置补全失败: ${error.message}`);
+      });
     }
     const shown = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
     console.log(`\n  Eleganza v${VERSION}`);

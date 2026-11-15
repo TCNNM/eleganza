@@ -1395,6 +1395,7 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
     bash -s -- '${base}'`;
   const command = buildCommand(false);
   const overwriteCommand = buildCommand(true);
+  const keyCommand = `openssl rand -hex 24\n# 没有 openssl 时：\nnode -e "console.log(require('node:crypto').randomBytes(24).toString('hex'))"`;
 
   openDialog({
     kicker: 'AGENT INSTALL',
@@ -1402,11 +1403,19 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
     subtitle: `当前站点：${base}`,
     body: `
       <div class="dialog-section">
-        <p class="dialog-lead">在目标服务器的 SSH 中执行下面命令。脚本会自动下载 Agent、写入 systemd 服务并启动。</p>
+        <p class="dialog-lead">先生成 agentKey 并填入面板配置，再到目标服务器的 SSH 中执行安装命令。安装脚本会自动下载 Agent、写入 systemd 服务并启动。</p>
         <div class="info-cell probe-site-cell">
           <span>当前绑定站点${fromConfig ? ' · site.publicUrl' : ' · 当前访问地址'}</span>
           <strong>${escapeHtml(base)}</strong>
         </div>
+        <div class="code-block">
+          <div class="code-head">
+            <span>GENERATE AGENT KEY</span>
+            <button class="copy-button" type="button" data-copy-target="probe-key-command" data-label="复制命令">复制命令</button>
+          </div>
+          <pre id="probe-key-command" tabindex="0">${escapeHtml(keyCommand)}</pre>
+        </div>
+        <p class="probe-footnote">生成后把结果填入面板 <code>config.json</code> 对应服务器的 <code>agentKey</code>，下面的安装命令会把它作为 <code>ELEGANZA_TOKEN</code> 写入目标机。</p>
         <div class="code-block">
           <div class="code-head">
             <span>AGENT INSTALL · SYSTEMD</span>
