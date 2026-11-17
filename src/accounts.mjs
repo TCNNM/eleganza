@@ -19,15 +19,8 @@ export const DEFAULT_PREFERENCES = Object.freeze({
 });
 
 export const PREFERENCE_OPTIONS = Object.freeze({
-  style: [
-    'cosmos', 'paper', 'terminal', 'gilded',
-    'popipa', 'afterglow', 'pasupare', 'roselia', 'hhw', 'morfonica', 'ras', 'mewtype',
-  ],
-  accent: [
-    'mint', 'azure', 'violet', 'amber', 'rose', 'champagne', 'lime',
-    'popipa-pink', 'afterglow-red', 'pasupare-pink', 'roselia-violet',
-    'hhw-yellow', 'morfonica-blue', 'ras-yellow', 'mewtype-pink',
-  ],
+  style: ['cosmos', 'paper', 'terminal', 'gilded'],
+  accent: ['mint', 'azure', 'violet', 'amber', 'rose', 'champagne', 'lime'],
   density: ['comfortable', 'compact'],
   effects: [true, false],
   motion: [true, false],

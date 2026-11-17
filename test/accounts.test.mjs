@@ -66,11 +66,6 @@ test('preferences and display names are validated', async () => {
   assert.equal(updated.displayName, '艾丽丝');
   assert.equal(updated.preferences.accent, 'champagne');
   assert.equal(updated.preferences.effects, false);
-  const bandTheme = accounts.updateOwnProfile(user.id, {
-    preferences: { style: 'roselia', accent: 'roselia-violet' },
-  });
-  assert.equal(bandTheme.preferences.style, 'roselia');
-  assert.equal(bandTheme.preferences.accent, 'roselia-violet');
   assert.throws(() => accounts.updateOwnProfile(user.id, { preferences: { accent: 'rainbow' } }), AccountError);
   assert.throws(() => accounts.updateOwnProfile(user.id, { displayName: 'x'.repeat(41) }), AccountError);
   await accounts.close();
