@@ -566,7 +566,6 @@ export class Globe {
     this.markers = [];
     const labels = [];
     const groups = new Map();
-    const severity = { online: 3, pending: 2, warning: 1, offline: 0 };
 
     for (const node of this.targets) {
       if (!Number.isFinite(Number(node.lat)) || !Number.isFinite(Number(node.lon))) continue;
@@ -582,112 +581,87 @@ export class Globe {
     for (const nodes of groups.values()) {
       const lat = nodes.reduce((sum, node) => sum + Number(node.lat), 0) / nodes.length;
       const lon = nodes.reduce((sum, node) => sum + Number(node.lon), 0) / nodes.length;
-      const point = this.projectLatLon(lat, lon, geo);
-      const visible = point.z > 0.02;
-      const status = nodes.reduce((worst, node) => (
-        (severity[node.status] ?? 3) < (severity[worst] ?? 3) ? node.status : worst
-      ), 'online');
-      const color = this.statusColor(status);
-      const representative = nodes[0];
+      const base = this.projectLatLon(lat, lon, geo);
+      const spacing = 24;
+      const startY = base.y - ((nodes.length - 1) * spacing) / 2;
 
-      this.markers.push({
-        id: representative.id,
-        x: point.x,
-        y: point.y,
-        z: point.z,
-        visible,
-        node: representative,
-        nodes,
-        cluster: nodes.length > 1,
-      });
-      if (!visible) continue;
-
-      const depth = Math.min(1, Math.max(0.15, point.z));
-      const isHovered = nodes.some((node) => this.hovered === node.id);
-      const isSelected = nodes.some((node) => this.selectedId === node.id);
-
-      if (nodes.length > 1) {
-        const stack = Math.min(nodes.length - 1, 4);
-        for (let i = 1; i <= stack; i += 1) {
-          const item = nodes[i] || representative;
-          const offsetX = point.x + i * 3.2;
-          const offsetY = point.y - i * 2.6;
-          ctx.save();
-          ctx.globalAlpha = Math.max(0.16, 0.52 - i * 0.07);
-          ctx.fillStyle = this.statusColor(item.status || status);
-          ctx.beginPath();
-          ctx.arc(offsetX, offsetY, 2.3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = this.palette.markerStroke;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-
-      // pulse
-      const phase = ((now / 2600) + representative.lon / 360 + representative.lat / 180) % 1;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.globalAlpha = (1 - phase) * 0.4 * depth;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 4 + phase * 16, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // glow
-      const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, isHovered || isSelected ? 16 : 11);
-      glow.addColorStop(0, `${color}66`);
-      glow.addColorStop(1, `${color}00`);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, isHovered || isSelected ? 16 : 11, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.save();
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, isHovered || isSelected ? 4.4 : 3.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = this.palette.markerStroke;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
-
-      if (nodes.length > 1) {
+      if (nodes.length > 1 && base.z > 0.02) {
         ctx.save();
-        ctx.font = this.palette.font;
-        const badge = `×${nodes.length}`;
-        const badgeWidth = ctx.measureText(badge).width + 9;
-        const bx = point.x + 8;
-        const by = point.y - 19;
-        roundRect(ctx, bx, by, badgeWidth, 13, 4);
-        ctx.fillStyle = this.palette.labelBg;
-        ctx.fill();
-        ctx.strokeStyle = `${color}77`;
+        ctx.strokeStyle = this.palette.graticule;
         ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(base.x, startY);
+        ctx.lineTo(base.x, startY + (nodes.length - 1) * spacing);
         ctx.stroke();
-        ctx.fillStyle = color;
-        ctx.textBaseline = 'middle';
-        ctx.fillText(badge, bx + 4.5, by + 7);
         ctx.restore();
       }
 
-      if (point.z > 0.22 || isHovered || isSelected) {
-        labels.push({
-          node: representative,
-          nodes,
+      nodes.forEach((node, index) => {
+        const point = {
+          x: base.x,
+          y: startY + index * spacing,
+          z: base.z,
+        };
+        const visible = point.z > 0.02;
+        this.markers.push({
+          id: node.id,
           x: point.x,
           y: point.y,
           z: point.z,
-          color,
-          priority: (isHovered || isSelected ? 10 : 0) + point.z,
-          text: nodes.length > 1 ? `${representative.city || representative.name} ×${nodes.length}` : representative.name,
+          visible,
+          node,
         });
-      }
+        if (!visible) return;
+
+        const color = this.statusColor(node.status);
+        const depth = Math.min(1, Math.max(0.15, point.z));
+        const isHovered = this.hovered === node.id;
+        const isSelected = this.selectedId === node.id;
+
+        // pulse
+        const phase = ((now / 2600) + node.lon / 360 + node.lat / 180) % 1;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = (1 - phase) * 0.4 * depth;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 4 + phase * 16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // glow
+        const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, isHovered || isSelected ? 16 : 11);
+        glow.addColorStop(0, `${color}66`);
+        glow.addColorStop(1, `${color}00`);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, isHovered || isSelected ? 16 : 11, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, isHovered || isSelected ? 4.4 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = this.palette.markerStroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        if (point.z > 0.22 || isHovered || isSelected) {
+          labels.push({
+            node,
+            x: point.x,
+            y: point.y,
+            z: point.z,
+            color,
+            priority: (isHovered || isSelected ? 10 : 0) + point.z,
+            text: node.name,
+          });
+        }
+      });
     }
 
     labels.sort((a, b) => b.priority - a.priority);
