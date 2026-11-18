@@ -88,6 +88,11 @@ export class GeoLocator {
       await this.save();
       return location;
     } catch (error) {
+      const stale = this.cache[clean];
+      if (stale) {
+        this.log.warn?.(`[geo] ${clean} 实时定位失败，使用缓存: ${error.message}`);
+        return stale;
+      }
       this.log.warn?.(`[geo] 无法定位 ${clean}: ${error.message}`);
       return null;
     }
@@ -98,8 +103,12 @@ export class GeoLocator {
     if (!value) return null;
     if (net.isIP(value)) return this.locateIp(value);
     try {
-      const result = await dns.lookup(value, { family: 0, verbatim: true });
-      return this.locateIp(result.address);
+      const addresses = await dns.lookup(value, { all: true, verbatim: true });
+      for (const item of addresses) {
+        const location = await this.locateIp(item.address);
+        if (location) return location;
+      }
+      return null;
     } catch (error) {
       this.log.warn?.(`[geo] 无法解析 ${value}: ${error.message}`);
       return null;
@@ -140,6 +149,16 @@ export class GeoLocator {
     };
     store.site.hub = config.site.hub;
     this.log.info?.(`[geo] 探针中枢 = 面板服务器: ${city || '未知位置'} (${location.ip})`);
+    if (config.file) {
+      try {
+        const raw = JSON.parse(await readFile(config.file, 'utf8'));
+        raw.site = raw.site && typeof raw.site === 'object' ? raw.site : {};
+        raw.site.hub = config.site.hub;
+        await writeFile(config.file, `${JSON.stringify(raw, null, 2)}\n`, 'utf8');
+      } catch (error) {
+        this.log.warn?.(`[geo] 探针中枢写入配置失败: ${error.message}`);
+      }
+    }
     return location;
   }
 

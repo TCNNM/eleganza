@@ -565,18 +565,68 @@ export class Globe {
     const ctx = this.ctx;
     this.markers = [];
     const labels = [];
+    const groups = new Map();
+    const severity = { online: 3, pending: 2, warning: 1, offline: 0 };
+
     for (const node of this.targets) {
-      const point = this.projectLatLon(node.lat, node.lon, geo);
+      if (!Number.isFinite(Number(node.lat)) || !Number.isFinite(Number(node.lon))) continue;
+      const city = String(node.city || '').trim().toLowerCase();
+      const country = String(node.country || '').trim().toLowerCase();
+      const key = city
+        ? `${country}|${city}`
+        : `${Number(node.lat).toFixed(2)}|${Number(node.lon).toFixed(2)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(node);
+    }
+
+    for (const nodes of groups.values()) {
+      const lat = nodes.reduce((sum, node) => sum + Number(node.lat), 0) / nodes.length;
+      const lon = nodes.reduce((sum, node) => sum + Number(node.lon), 0) / nodes.length;
+      const point = this.projectLatLon(lat, lon, geo);
       const visible = point.z > 0.02;
-      this.markers.push({ id: node.id, x: point.x, y: point.y, z: point.z, visible, node });
+      const status = nodes.reduce((worst, node) => (
+        (severity[node.status] ?? 3) < (severity[worst] ?? 3) ? node.status : worst
+      ), 'online');
+      const color = this.statusColor(status);
+      const representative = nodes[0];
+
+      this.markers.push({
+        id: representative.id,
+        x: point.x,
+        y: point.y,
+        z: point.z,
+        visible,
+        node: representative,
+        nodes,
+        cluster: nodes.length > 1,
+      });
       if (!visible) continue;
-      const color = this.statusColor(node.status);
+
       const depth = Math.min(1, Math.max(0.15, point.z));
-      const isHovered = this.hovered === node.id;
-      const isSelected = this.selectedId === node.id;
+      const isHovered = nodes.some((node) => this.hovered === node.id);
+      const isSelected = nodes.some((node) => this.selectedId === node.id);
+
+      if (nodes.length > 1) {
+        const stack = Math.min(nodes.length - 1, 4);
+        for (let i = 1; i <= stack; i += 1) {
+          const item = nodes[i] || representative;
+          const offsetX = point.x + i * 3.2;
+          const offsetY = point.y - i * 2.6;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.16, 0.52 - i * 0.07);
+          ctx.fillStyle = this.statusColor(item.status || status);
+          ctx.beginPath();
+          ctx.arc(offsetX, offsetY, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = this.palette.markerStroke;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
 
       // pulse
-      const phase = ((now / 2600) + node.lon / 360 + node.lat / 180) % 1;
+      const phase = ((now / 2600) + representative.lon / 360 + representative.lat / 180) % 1;
       ctx.save();
       ctx.strokeStyle = color;
       ctx.globalAlpha = (1 - phase) * 0.4 * depth;
@@ -607,14 +657,35 @@ export class Globe {
       ctx.stroke();
       ctx.restore();
 
+      if (nodes.length > 1) {
+        ctx.save();
+        ctx.font = this.palette.font;
+        const badge = `×${nodes.length}`;
+        const badgeWidth = ctx.measureText(badge).width + 9;
+        const bx = point.x + 8;
+        const by = point.y - 19;
+        roundRect(ctx, bx, by, badgeWidth, 13, 4);
+        ctx.fillStyle = this.palette.labelBg;
+        ctx.fill();
+        ctx.strokeStyle = `${color}77`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badge, bx + 4.5, by + 7);
+        ctx.restore();
+      }
+
       if (point.z > 0.22 || isHovered || isSelected) {
         labels.push({
-          node,
+          node: representative,
+          nodes,
           x: point.x,
           y: point.y,
           z: point.z,
           color,
           priority: (isHovered || isSelected ? 10 : 0) + point.z,
+          text: nodes.length > 1 ? `${representative.city || representative.name} ×${nodes.length}` : representative.name,
         });
       }
     }
@@ -624,7 +695,7 @@ export class Globe {
     ctx.font = this.palette.font;
     ctx.textBaseline = 'middle';
     for (const label of labels) {
-      const text = label.node.name;
+      const text = label.text || label.node.name;
       const textWidth = ctx.measureText(text).width;
       const boxWidth = textWidth + 26;
       const boxHeight = 19;
@@ -683,8 +754,15 @@ export class Globe {
       return;
     }
     const node = marker.node;
+    const nodes = marker.nodes || [node];
     tooltip.hidden = false;
-    tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><span>${escapeHtml(node.city || node.group || '')} · ${STATUS_TEXT[node.status] || ''}${node.latencyMs != null ? ` · ${node.latencyMs} ms` : ''}</span>`;
+    const status = marker.status || node.status;
+    if (nodes.length > 1) {
+      const names = nodes.slice(0, 3).map((item) => item.name).join(' · ');
+      tooltip.innerHTML = `<strong>${escapeHtml(names)}${nodes.length > 3 ? ` +${nodes.length - 3}` : ''}</strong><span>${escapeHtml(node.city || node.country || '')} · ${nodes.length} 台服务器 · ${STATUS_TEXT[status] || ''}</span>`;
+    } else {
+      tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><span>${escapeHtml(node.city || node.group || '')} · ${STATUS_TEXT[status] || ''}${node.latencyMs != null ? ` · ${node.latencyMs} ms` : ''}</span>`;
+    }
     tooltip.style.left = `${marker.x}px`;
     tooltip.style.top = `${marker.y}px`;
   }
