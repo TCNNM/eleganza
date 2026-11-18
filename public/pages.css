@@ -30,39 +30,25 @@ body[data-page="about"] .footer {
 
 /* ----------------------------------------------------------------- overview */
 
+body[data-page="overview"] .shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px 18px;
+}
+
 body[data-page="overview"] .status-banner,
-body[data-page="overview"] .split {
+body[data-page="overview"] .split,
+body[data-page="overview"] .hero-copy {
   display: none;
 }
 
 body[data-page="overview"] .hero {
-  flex: 1;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: block;
   min-height: 0;
   padding: 0;
-  gap: clamp(20px, 3vw, 46px);
-}
-
-body[data-page="overview"] .hero-copy {
-  min-height: 0;
-}
-
-body[data-page="overview"] .hero h1 {
-  margin: 14px 0 12px;
-  font-size: clamp(34px, 3.65vw, 58px);
-}
-
-body[data-page="overview"] .hero-desc {
-  max-width: 500px;
-  font-size: 14px;
-  line-height: 1.72;
-}
-
-body[data-page="overview"] .hero-actions {
-  margin-top: 20px;
-}
-
-body[data-page="overview"] .hero-metrics {
-  display: none;
 }
 
 body[data-page="overview"] .globe-panel {
@@ -76,45 +62,53 @@ body[data-page="overview"] .globe-stage {
 }
 
 body[data-page="overview"] .kpis {
-  flex: 0 0 auto;
-  gap: 10px;
-  margin: 0 0 14px;
-}
-
-body[data-page="overview"] .kpi-card {
-  padding: 12px 16px 10px;
-}
-
-body[data-page="overview"] .kpi-icon {
-  width: 28px;
-  height: 28px;
-}
-
-body[data-page="overview"] .kpi-value {
-  margin-top: 4px;
-  font-size: clamp(24px, 2vw, 30px);
-}
-
-body[data-page="overview"] .kpi-foot {
-  margin-top: 4px;
-  font-size: 9.5px;
-}
-
-body[data-page="overview"] .kpi-visual {
-  margin-top: 5px;
-}
-
-body[data-page="overview"] .kpi-meter {
-  margin-top: 6px;
-}
-
-body[data-page="overview"] .nodes-section {
-  flex: 0 0 auto;
-  min-height: 0;
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   margin: 0;
 }
 
+body[data-page="overview"] .kpi-card {
+  padding: 10px 13px 9px;
+}
+
+body[data-page="overview"] .kpi-icon {
+  width: 24px;
+  height: 24px;
+}
+
+body[data-page="overview"] .kpi-value {
+  margin-top: 3px;
+  font-size: clamp(21px, 1.8vw, 27px);
+}
+
+body[data-page="overview"] .kpi-foot {
+  margin-top: 3px;
+  font-size: 9px;
+}
+
+body[data-page="overview"] .kpi-visual {
+  margin-top: 4px;
+}
+
+body[data-page="overview"] .kpi-meter {
+  margin-top: 5px;
+}
+
+body[data-page="overview"] .nodes-section {
+  grid-column: 2;
+  grid-row: 2;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 body[data-page="overview"] .nodes-section .section-head {
+  flex-shrink: 0;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -130,21 +124,23 @@ body[data-page="overview"] .nodes-section .node-tools {
 }
 
 body[data-page="overview"] .node-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  grid-auto-rows: max-content;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-}
-
-body[data-page="overview"] .node-grid .node-card:nth-child(n + 4) {
-  display: none;
+  padding-right: 4px;
+  scrollbar-width: thin;
 }
 
 body[data-page="overview"] .node-card {
-  padding: 12px 14px 10px;
+  padding: 11px 13px 9px;
 }
 
 body[data-page="overview"] .node-stats {
-  margin-top: 9px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 7px;
 }
 
 body[data-page="overview"] .spark,
@@ -434,18 +430,29 @@ body[data-page="about"] .info-note {
     padding-bottom: 32px;
   }
 
+  body[data-page="overview"] .shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
   body[data-page="overview"] .hero {
-    flex: 0 0 auto;
-    grid-template-columns: 1fr;
-    padding: 12px 0 18px;
+    display: block;
+    padding: 0;
   }
 
   body[data-page="overview"] .globe-panel {
     height: auto;
-    min-height: 400px;
+    min-height: 420px;
+  }
+
+  body[data-page="overview"] .nodes-section {
+    flex: 0 0 auto;
   }
 
   body[data-page="overview"] .node-grid {
+    flex: none;
+    overflow: visible;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
