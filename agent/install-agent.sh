@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eleganza agent 一键安装（systemd）
+# Eleganza agent 一键安装（systemd / OpenRC）
 #
 # 本地安装（脚本同目录已有 eleganza-agent.sh / .service）：
 #   read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
@@ -33,6 +33,11 @@ GitHub 一行安装:
   curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
     | sudo env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx xray" \
       ELEGANZA_MOUNTS="/ /var" bash -s -- https://panel.example.com
+
+Alpine Linux（root）:
+  apk add --no-cache bash curl ca-certificates
+  curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
+    | env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" bash -s -- https://panel.example.com
 USAGE
 }
 
@@ -52,10 +57,18 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   exit 1
 fi
 
-if ! command -v systemctl >/dev/null 2>&1; then
-  echo "当前系统没有 systemd。请参考 README 的「手动运行 / 没有 systemd」一节。" >&2
+INIT_SYSTEM=""
+if command -v systemctl >/dev/null 2>&1; then
+  INIT_SYSTEM="systemd"
+elif command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
+  INIT_SYSTEM="openrc"
+else
+  echo "当前系统没有 systemd 或 OpenRC，无法注册常驻服务。" >&2
+  echo "请参考 README 的「手动运行 / 没有 systemd」一节。" >&2
   exit 1
 fi
+SERVICE_FILE="eleganza-agent.service"
+[ "$INIT_SYSTEM" = "openrc" ] && SERVICE_FILE="eleganza-agent.openrc"
 
 TMP_DIR=""
 cleanup() {
@@ -104,38 +117,49 @@ fi
 
 if [ -n "$SCRIPT_DIR" ] \
   && [ -s "$SCRIPT_DIR/eleganza-agent.sh" ] \
-  && [ -s "$SCRIPT_DIR/eleganza-agent.service" ]; then
+  && [ -s "$SCRIPT_DIR/$SERVICE_FILE" ]; then
   SRC_DIR="$SCRIPT_DIR"
 else
   TMP_DIR="$(mktemp -d)"
   SRC_DIR="$TMP_DIR"
-  echo "下载 Eleganza Agent 文件: $RAW_BASE"
+  echo "下载 Eleganza Agent 文件: $RAW_BASE ($INIT_SYSTEM)"
   fetch_file "$RAW_BASE/eleganza-agent.sh" "$SRC_DIR/eleganza-agent.sh"
-  fetch_file "$RAW_BASE/eleganza-agent.service" "$SRC_DIR/eleganza-agent.service"
+  fetch_file "$RAW_BASE/$SERVICE_FILE" "$SRC_DIR/$SERVICE_FILE"
 fi
 
-if [ ! -s "$SRC_DIR/eleganza-agent.sh" ] || [ ! -s "$SRC_DIR/eleganza-agent.service" ]; then
+if [ ! -s "$SRC_DIR/eleganza-agent.sh" ] || [ ! -s "$SRC_DIR/$SERVICE_FILE" ]; then
   echo "Agent 文件下载失败，请检查网络或 ELEGANZA_AGENT_BASE。" >&2
   exit 1
 fi
 
 normalize_lf "$SRC_DIR/eleganza-agent.sh"
-normalize_lf "$SRC_DIR/eleganza-agent.service"
+normalize_lf "$SRC_DIR/$SERVICE_FILE"
 
 SHEBANG="$(sed -n '1p' "$SRC_DIR/eleganza-agent.sh" | tr -d '\r')"
 SHEBANG="${SHEBANG#$'\xEF\xBB\xBF'}"
 if [ "$SHEBANG" != "#!/usr/bin/env bash" ] && [ "$SHEBANG" != "#!/bin/bash" ]; then
   invalid_file "$SRC_DIR/eleganza-agent.sh"
 fi
-if ! grep -q '^\[Unit\]' "$SRC_DIR/eleganza-agent.service"; then
-  invalid_file "$SRC_DIR/eleganza-agent.service"
+if [ "$INIT_SYSTEM" = "systemd" ]; then
+  if ! grep -q '^\[Unit\]' "$SRC_DIR/$SERVICE_FILE"; then
+    invalid_file "$SRC_DIR/$SERVICE_FILE"
+  fi
+else
+  if ! grep -q '^command=' "$SRC_DIR/$SERVICE_FILE" || ! grep -q 'openrc-run' "$SRC_DIR/$SERVICE_FILE"; then
+    invalid_file "$SRC_DIR/$SERVICE_FILE"
+  fi
 fi
 
 mkdir -p /usr/local/bin
 cp "$SRC_DIR/eleganza-agent.sh" /usr/local/bin/eleganza-agent
 chmod 0755 /usr/local/bin/eleganza-agent
-cp "$SRC_DIR/eleganza-agent.service" /etc/systemd/system/eleganza-agent.service
-chmod 0644 /etc/systemd/system/eleganza-agent.service
+if [ "$INIT_SYSTEM" = "systemd" ]; then
+  cp "$SRC_DIR/$SERVICE_FILE" /etc/systemd/system/eleganza-agent.service
+  chmod 0644 /etc/systemd/system/eleganza-agent.service
+else
+  cp "$SRC_DIR/$SERVICE_FILE" /etc/init.d/eleganza-agent
+  chmod 0755 /etc/init.d/eleganza-agent
+fi
 
 if [ -f /etc/eleganza-agent.env ] && [ "${FORCE:-0}" != "1" ]; then
   echo "已存在 /etc/eleganza-agent.env，保留原配置。要覆盖请加 FORCE=1。"
@@ -153,14 +177,27 @@ EOF
   chmod 600 /etc/eleganza-agent.env
 fi
 
-systemctl daemon-reload
-systemctl enable eleganza-agent >/dev/null 2>&1 || true
-systemctl restart eleganza-agent
-sleep 2
+if [ "$INIT_SYSTEM" = "systemd" ]; then
+  systemctl daemon-reload
+  systemctl enable eleganza-agent >/dev/null 2>&1 || true
+  systemctl restart eleganza-agent
+  sleep 2
 
-echo
-echo "安装完成。"
-systemctl --no-pager --lines=8 status eleganza-agent || true
-echo
-echo "实时日志: journalctl -u eleganza-agent -f"
+  echo
+  echo "安装完成（systemd）。"
+  systemctl --no-pager --lines=8 status eleganza-agent || true
+  echo
+  echo "实时日志: journalctl -u eleganza-agent -f"
+else
+  rc-update add eleganza-agent default >/dev/null 2>&1 || true
+  rc-service eleganza-agent restart >/dev/null 2>&1 || rc-service eleganza-agent start
+  sleep 2
+
+  echo
+  echo "安装完成（OpenRC）。"
+  rc-service eleganza-agent status || true
+  echo
+  echo "查看状态: rc-service eleganza-agent status"
+  echo "手动测试: /usr/local/bin/eleganza-agent --once"
+fi
 echo "配置文件: /etc/eleganza-agent.env"

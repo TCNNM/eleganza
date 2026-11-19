@@ -451,7 +451,7 @@ node tools/create-admin.mjs admin --reset
 
 ## Agent
 
-Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` 面向 systemd（Debian / Ubuntu / Rocky 等）；Alpine 等 OpenRC 系统请手动把脚本和 env 文件放好，并用 OpenRC 或 supervisor 常驻。
+Agent 是一个纯 Bash 脚本，适用于大多数 Linux。`install-agent.sh` 自动识别 systemd（Debian / Ubuntu / Rocky 等）和 OpenRC（Alpine 等），并注册为系统服务。
 
 ### 一行安装（SSH 中直接粘贴）
 
@@ -489,7 +489,39 @@ curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agen
     bash -s -- https://status.example.com
 ```
 
-脚本会自动下载 Agent 和 systemd 单元，写入 `/etc/eleganza-agent.env`，然后启动 `eleganza-agent`。
+脚本会自动下载 Agent 和对应服务单元，写入 `/etc/eleganza-agent.env`，然后启动 `eleganza-agent`。
+
+### Alpine Linux / OpenRC
+
+Alpine 需要先安装 bash 和 curl，然后**用 root 执行**（不需要 sudo）：
+
+```bash
+apk add --no-cache bash curl ca-certificates
+
+read -r -s -p 'Agent Token: ' ELEGANZA_TOKEN; echo
+
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \
+  | env ELEGANZA_TOKEN="$ELEGANZA_TOKEN" ELEGANZA_SERVICES="nginx" ELEGANZA_MOUNTS="/" \
+    bash -s -- https://status.example.com
+```
+
+安装脚本会自动：
+
+- 将 Agent 安装到 `/usr/local/bin/eleganza-agent`
+- 写入 `/etc/eleganza-agent.env`
+- 将 OpenRC 服务安装到 `/etc/init.d/eleganza-agent`
+- 执行 `rc-update add eleganza-agent default`
+- 启动并显示 `rc-service eleganza-agent status`
+
+后续管理：
+
+```bash
+rc-service eleganza-agent status
+rc-service eleganza-agent restart
+rc-update del eleganza-agent default   # 卸载时移除自启
+```
+
+管理员也可以在面板「接入探针」中直接展开 **Alpine Linux / OpenRC** 命令，复制后执行。
 
 ### 覆盖安装
 
@@ -554,6 +586,7 @@ ELEGANZA_URL=https://status.example.com ELEGANZA_TOKEN="$ELEGANZA_TOKEN" \
 - `agent/eleganza-agent.sh`：脚本本体
 - `agent/eleganza-agent.env.example`：环境变量示例（安装后为 `/etc/eleganza-agent.env`，权限 600）
 - `agent/eleganza-agent.service`：systemd 单元
+- `agent/eleganza-agent.openrc`：Alpine / OpenRC 服务
 - `agent/install-agent.sh`：一键安装
 
 Agent 是**只读**的：只读取 `/proc`、`df` 和 `systemctl is-active`，不会修改系统；但 unit 默认以 root 运行（服务状态检查最省事），已加 `ProtectSystem=strict` 等加固。不需要服务检查时可以把 `ELEGANZA_SERVICES` 留空，并考虑改成非 root 用户。
@@ -633,7 +666,7 @@ eleganza/
 │   ├── charts.js           # SVG 迷你曲线 + Canvas 时序图
 │   └── globe-land.js       # 由 Natural Earth 110m 生成的点阵（构建产物）
 ├── assets/land-110m.json   # Natural Earth 110m 陆地拓扑（点阵数据源）
-├── agent/                  # Bash Agent + systemd + 安装脚本
+├── agent/                  # Bash Agent + systemd / OpenRC + 安装脚本
 ├── deploy/                 # 一键安装/卸载、systemd、Nginx / Caddy 示例
 ├── test/                   # node:test 单元与集成测试
 ├── tools/

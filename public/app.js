@@ -1442,6 +1442,10 @@ function openProbeCommandDialog() {
     bash -s -- '${base}'`;
       const command = buildCommand(false);
       const overwriteCommand = buildCommand(true);
+      const alpineCommand = `apk add --no-cache bash curl ca-certificates
+curl -fsSL https://raw.githubusercontent.com/TCNNM/eleganza/refs/heads/main/agent/install-agent.sh \\
+  | env ELEGANZA_TOKEN='${target.agentKey}'${insecureEnv} \\
+    bash -s -- '${base}'`;
 
       result.innerHTML = `
         <div class="info-cell probe-site-cell">
@@ -1463,6 +1467,17 @@ function openProbeCommandDialog() {
               <button class="copy-button" type="button" data-copy-target="probe-overwrite-code" data-label="复制覆盖命令">复制覆盖命令</button>
             </div>
             <pre id="probe-overwrite-code" tabindex="0">${escapeHtml(overwriteCommand)}</pre>
+          </div>
+        </details>
+        <details class="probe-advanced">
+          <summary>Alpine Linux / OpenRC 安装命令</summary>
+          <p class="probe-footnote">在 Alpine 上用 root 执行；安装脚本会自动注册 OpenRC 服务。</p>
+          <div class="code-block">
+            <div class="code-head">
+              <span>ALPINE · OPENRC</span>
+              <button class="copy-button" type="button" data-copy-target="probe-alpine-code" data-label="复制 Alpine 命令">复制 Alpine 命令</button>
+            </div>
+            <pre id="probe-alpine-code" tabindex="0">${escapeHtml(alpineCommand)}</pre>
           </div>
         </details>
         <p class="probe-footnote">在目标服务器执行后，约 60 秒内出现新服务器。之后可在服务器详情中重命名。</p>

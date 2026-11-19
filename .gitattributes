@@ -3,3 +3,4 @@
 *.example text eol=lf
 *.conf text eol=lf
 docker-compose.yml text eol=lf
+*.openrc text eol=lf

@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+# Eleganza agent — OpenRC service for Alpine Linux.
+description="Eleganza agent — push server metrics to the probe panel"
+command="/usr/local/bin/eleganza-agent"
+command_background="yes"
+pidfile="/run/eleganza-agent.pid"
+
+depend() {
+  need net
+  after firewall
+}
